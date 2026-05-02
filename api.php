@@ -66,9 +66,10 @@ switch ($action) {
         foreach ($ips as &$ip) {
             $a = $ip['ip_addr'] ?? '';
             if ($a && isset($cache[$a])) {
-                $ip['status']     = $cache[$a]['online'] ? 'online' : 'offline';
-                $ip['last_check'] = $cache[$a]['last_check'];
-                $ip['ping_time']  = $cache[$a]['time'];
+                $ip['status']      = $cache[$a]['online'] ? 'online' : 'offline';
+                $ip['last_check']  = $cache[$a]['last_check'];
+                $ip['ping_time']   = $cache[$a]['time'];
+                $ip['ping_method'] = $cache[$a]['method'] ?? null;
             }
         }
         unset($ip);
@@ -226,7 +227,8 @@ switch ($action) {
         $result   = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000));
         $saved    = updatePingResult($addr, $result);
         $out      = ['success' => true, 'ip' => $addr, 'online' => $result['online'],
-                     'time' => $result['time'], 'checked_at' => $saved['last_check']];
+                     'time' => $result['time'], 'method' => $result['method'] ?? null,
+                     'checked_at' => $saved['last_check']];
         break;
     }
 

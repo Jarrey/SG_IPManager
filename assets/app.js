@@ -383,7 +383,8 @@ const App = (() => {
       : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
 
     const pingTimeStr = ip.ping_time != null ? ` ${ip.ping_time}ms` : '';
-    const lastCheckStr = ip.last_check ? `<br><small style="color:var(--fg4)">${ip.last_check.slice(11,16)} ${pingTimeStr}</small>` : '';
+    const methodStr   = ip.ping_method ? ` · ${ip.ping_method}` : '';
+    const lastCheckStr = ip.last_check ? `<br><small style="color:var(--fg4)">${ip.last_check.slice(11,16)}${pingTimeStr}${methodStr}</small>` : '';
 
     const tags = (ip.tags || []).filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join('');
     const comment = [esc(ip.comment || ''), esc(ip.cl_name || '')].filter(Boolean).join(' · ');
@@ -480,7 +481,8 @@ const App = (() => {
         ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>'
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       if (dot) { dot.className = `status-dot ${cls}`; dot.title = `${label} ${r.time ?? ''}ms`; dot.innerHTML = svg; }
-      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}`, r.online ? 'success' : 'error', 2500);
+      const methodLabel = r.method && r.method !== 'ping' ? ` · ${r.method}` : '';
+      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}`, r.online ? 'success' : 'error', 2500);
     }
     loadStats();
   }

@@ -170,6 +170,7 @@ function updatePingResult(string $ip, array $result): array {
     $cache[$ip] = [
         'online'     => $result['online'],
         'time'       => $result['time'] ?? null,
+        'method'     => $result['method'] ?? null,
         'last_check' => date('Y-m-d H:i:s'),
     ];
     savePingCache($cache);

@@ -194,22 +194,24 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       <div class="page-title">
         <h1>IP 列表</h1>
         <div class="page-actions">
-          <select id="filter-status" class="select-sm">
-            <option value="">全部状态</option>
-            <option value="online">在线</option>
-            <option value="offline">离线</option>
-            <option value="unchecked">未检测</option>
-          </select>
-          <select id="filter-enabled" class="select-sm">
-            <option value="">全部启用</option>
-            <option value="yes">已启用</option>
-            <option value="no">已禁用</option>
-          </select>
-          <select id="filter-iface" class="select-sm">
-            <option value="">全部接口</option>
-          </select>
           <button id="bulk-delete-btn" class="btn btn-sm btn-danger hidden">删除所选</button>
         </div>
+      </div>
+      <div class="filter-bar">
+        <select id="filter-status" class="select-sm">
+          <option value="">全部状态</option>
+          <option value="online">在线</option>
+          <option value="offline">离线</option>
+          <option value="unchecked">未检测</option>
+        </select>
+        <select id="filter-enabled" class="select-sm">
+          <option value="">全部启用</option>
+          <option value="yes">已启用</option>
+          <option value="no">已禁用</option>
+        </select>
+        <select id="filter-iface" class="select-sm">
+          <option value="">全部接口</option>
+        </select>
       </div>
 
       <div class="table-wrap">
@@ -428,8 +430,10 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         </div>
         <div class="form-group">
           <label>MAC 地址</label>
-          <input type="text" id="ip-form-mac" class="input-full" placeholder="AA:BB:CC:DD:EE:FF">
-          <div id="mac-vendor-hint" class="mac-vendor-hint hidden"></div>
+          <div class="mac-input-row">
+            <input type="text" id="ip-form-mac" class="input-full" placeholder="AA:BB:CC:DD:EE:FF">
+            <div id="mac-vendor-hint" class="mac-vendor-hint hidden"></div>
+          </div>
         </div>
       </div>
       <div class="form-row">

@@ -368,21 +368,31 @@ tbody tr.disabled-row { opacity: .5; }
   opacity: .85;
 }
 
-/* MAC vendor hint below input in form */
+/* MAC input row — input + vendor hint side by side */
+.mac-input-row {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+}
+.mac-input-row > input { flex: 1; min-width: 0; width: auto; }
+
+/* MAC vendor hint — inline to the right of the input */
 .mac-vendor-hint {
   display: flex;
   align-items: center;
-  gap: .4rem;
-  margin-top: .35rem;
-  padding: .3rem .5rem;
-  background: var(--bg2);
-  border-radius: 6px;
+  gap: .35rem;
+  padding: .3rem .55rem;
+  background: var(--bg3);
   border: 1px solid var(--border);
-  font-size: .8rem;
+  border-radius: 6px;
+  font-size: .78rem;
   color: var(--fg2);
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 160px;
 }
 .mac-vendor-hint.hidden { display: none; }
-.vendor-hint-name { font-weight: 500; }
+.vendor-hint-name { font-weight: 500; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
 .vendor-hint-loading { color: var(--fg4); font-style: italic; }
 .col-iface  { min-width: 70px; }
 .col-comment{ min-width: 150px; }
@@ -479,6 +489,18 @@ tbody tr.disabled-row { opacity: .5; }
 .page-btn:hover { background: var(--bg3); border-color: var(--border-h); }
 .page-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 .page-btn:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ── Filter bar (IP list page) ──────────────────────────────────────────── */
+.filter-bar {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.filter-bar .select-sm {
+  flex: 1;
+  min-width: 120px;
+}
 
 /* ══════════════════════════════════════════════════════════════════════════════
    SUBNET VIEW
@@ -811,6 +833,8 @@ select { cursor: pointer; appearance: none;
   .col-gw, .col-mac, .col-vendor { display: none; }
   .page-title { flex-direction: column; align-items: flex-start; }
   .page-actions { width: 100%; }
+  .filter-bar { flex-direction: column; }
+  .filter-bar .select-sm { width: 100%; min-width: 0; flex: none; }
 }
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }
