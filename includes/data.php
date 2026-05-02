@@ -37,9 +37,12 @@ function getNextID(array $ips): int {
 
 function parseCSVContent(string $content): array {
     // Detect & convert encoding
-    $detected = mb_detect_encoding($content, ['UTF-8', 'GBK', 'GB2312', 'BIG5', 'ISO-8859-1'], true);
-    if ($detected && $detected !== 'UTF-8') {
-        $content = mb_convert_encoding($content, 'UTF-8', $detected);
+    // 1. Strip UTF-8 BOM if present
+    if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
+        $content = substr($content, 3);
+    } elseif (!mb_check_encoding($content, 'UTF-8')) {
+        // Not valid UTF-8 — treat as GBK / GB2312 / GB18030
+        $content = mb_convert_encoding($content, 'UTF-8', 'GBK');
     }
 
     $lines   = preg_split('/\r?\n/', trim($content));

@@ -606,6 +606,7 @@ const App = (() => {
 
   // ── Import / Export ────────────────────────────────────────────────────────
   let importContent = '';
+  let importFile    = null;  // raw File object for binary upload
 
   function setupIO() {
     const dz   = document.getElementById('drop-zone');
@@ -627,6 +628,7 @@ const App = (() => {
     document.getElementById('btn-cancel-import')?.addEventListener('click', () => {
       document.getElementById('import-preview').classList.add('hidden');
       importContent = '';
+      importFile    = null;
     });
 
     document.getElementById('btn-export')?.addEventListener('click', () => {
@@ -655,13 +657,29 @@ const App = (() => {
     });
   }
 
+  // Detect encoding from ArrayBuffer: UTF-8 BOM → UTF-8, valid UTF-8 → UTF-8, else GBK
+  function detectAndDecodeBuffer(buf) {
+    const bytes = new Uint8Array(buf, 0, 4);
+    // UTF-8 BOM EF BB BF
+    if (bytes[0] === 0xEF && bytes[1] === 0xBB && bytes[2] === 0xBF) {
+      return new TextDecoder('utf-8').decode(buf.slice(3));
+    }
+    try {
+      // strict: throws if not valid UTF-8
+      return new TextDecoder('utf-8', { fatal: true }).decode(buf);
+    } catch (_) {
+      return new TextDecoder('gbk').decode(buf);
+    }
+  }
+
   function readImportFile(file) {
+    importFile = file;
     const reader = new FileReader();
     reader.onload = e => {
-      importContent = e.target.result;
+      importContent = detectAndDecodeBuffer(e.target.result);
       previewCSV(importContent);
     };
-    reader.readAsText(file, 'utf-8');
+    reader.readAsArrayBuffer(file);
   }
 
   function previewCSV(content) {
@@ -699,12 +717,18 @@ const App = (() => {
   }
 
   async function doImport() {
-    if (!importContent) return;
+    if (!importFile && !importContent) return;
     const mode = document.getElementById('import-mode').value;
     const fd   = new FormData();
     fd.append('csrf', cfg.csrf);
     fd.append('mode', mode);
-    fd.append('csv_content', importContent);
+    // Send raw binary file so PHP can do its own encoding detection;
+    // fall back to decoded text string when no File object is available.
+    if (importFile) {
+      fd.append('csv_file', importFile, importFile.name);
+    } else {
+      fd.append('csv_content', importContent);
+    }
 
     const res  = await fetch('api.php?action=import_csv', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
     const r    = await res.json();
@@ -712,6 +736,7 @@ const App = (() => {
       toast(`导入成功：新增 ${r.added}，更新 ${r.updated}`, 'success');
       document.getElementById('import-preview').classList.add('hidden');
       importContent = '';
+      importFile    = null;
       loadStats();
       if (state.currentPage === 'iplist') loadIPs();
     } else toast(r.error || '导入失败', 'error');
