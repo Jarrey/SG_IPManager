@@ -466,11 +466,15 @@ switch ($action) {
         }
         $oui = substr($hex, 0, 6); // first 3 bytes
 
-        // Check local cache (valid 30 days)
+        // Check local cache
+        // Known vendors cached 30 days; empty (not-found) results cached only 1 day
         $cache = getMacVendorCache();
-        if (isset($cache[$oui]) && (time() - ($cache[$oui]['ts'] ?? 0)) < 86400 * 30) {
-            $out = ['success' => true, 'vendor' => $cache[$oui]['vendor'], 'oui' => $oui, 'cached' => true];
-            break;
+        if (isset($cache[$oui])) {
+            $ttl = ($cache[$oui]['vendor'] !== '') ? 86400 * 30 : 86400;
+            if ((time() - ($cache[$oui]['ts'] ?? 0)) < $ttl) {
+                $out = ['success' => true, 'vendor' => $cache[$oui]['vendor'], 'oui' => $oui, 'cached' => true];
+                break;
+            }
         }
 
         // Query macvendors.com — use full MAC with dashes (e.g. 00-1f-d0-98-5a-c6)
@@ -486,11 +490,11 @@ switch ($action) {
                 CURLOPT_URL            => $apiUrl,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => 5,
-                CURLOPT_USERAGENT      => 'SG-IPManager/1.0',
+                CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
                 CURLOPT_FAILONERROR    => false,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 3,
-                CURLOPT_HTTPHEADER     => ['Accept: text/plain'],
+                CURLOPT_HTTPHEADER     => ['Accept: text/plain, */*'],
             ]);
             $resp     = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -509,7 +513,7 @@ switch ($action) {
         } elseif (ini_get('allow_url_fopen')) {
             $ctx  = stream_context_create(['http' => [
                 'timeout'       => 5,
-                'header'        => "User-Agent: SG-IPManager/1.0\r\nAccept: text/plain\r\n",
+                'header'        => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36\r\nAccept: text/plain, */*\r\n",
                 'ignore_errors' => true,
             ]]);
             $resp = @file_get_contents($apiUrl, false, $ctx);
