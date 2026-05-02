@@ -254,7 +254,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
             导入 CSV
           </div>
           <div class="card-body">
-            <p class="hint-text">兼容 RouterOS / Mikrotik dhcp_static.csv 格式。<br>支持 UTF-8 / GBK 编码自动检测。</p>
+            <p class="hint-text">兼容 RouterOS / Mikrotik / 爱快等系统 dhcp_static.csv 格式。<br>支持 UTF-8 / GBK 编码自动检测。</p>
             <div class="form-group">
               <label>导入模式</label>
               <select id="import-mode" class="select-full">
@@ -294,7 +294,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
             导出 CSV
           </div>
           <div class="card-body">
-            <p class="hint-text">导出为标准 dhcp_static.csv 格式，可直接导入到 Mikrotik / RouterOS。</p>
+            <p class="hint-text">导出为标准 dhcp_static.csv 格式，可直接导入到 Mikrotik / RouterOS / 爱快等系统。</p>
             <div class="form-group">
               <label>导出范围</label>
               <select id="export-scope" class="select-full">
