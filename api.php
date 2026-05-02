@@ -458,7 +458,6 @@ switch ($action) {
     case 'lookup_mac': {
         // Read-only GET endpoint — no CSRF required
         $rawMac = trim($_GET['mac'] ?? '');
-        $debug  = !empty($_GET['debug']);
 
         // Normalize to hex digits only, uppercase
         $hex = strtoupper(preg_replace('/[^a-fA-F0-9]/', '', $rawMac));
@@ -471,7 +470,7 @@ switch ($action) {
         // Check local cache
         // Known vendors cached 30 days; empty (not-found) results cached only 1 day
         $cache = getMacVendorCache();
-        if (!$debug && isset($cache[$oui])) {
+        if (isset($cache[$oui])) {
             $ttl = ($cache[$oui]['vendor'] !== '') ? 86400 * 30 : 86400;
             if ((time() - ($cache[$oui]['ts'] ?? 0)) < $ttl) {
                 $out = ['success' => true, 'vendor' => $cache[$oui]['vendor'], 'oui' => $oui, 'cached' => true];
@@ -480,16 +479,13 @@ switch ($action) {
         }
 
         // Build URL using full MAC with dashes (e.g. 88-25-93-95-e6-d7)
-        // Use at least 6 hex chars (3 bytes / OUI), use full MAC if available
         $hexToUse  = strlen($hex) >= 12 ? $hex : str_pad($hex, 12, '0');
         $hexPairs  = str_split(strtolower($hexToUse), 2);
         $formatted = implode('-', $hexPairs);
         $vendor    = '';
         $apiUrl    = 'https://api.macvendors.com/' . $formatted;
-        $debugInfo = ['url' => $apiUrl, 'method' => 'none', 'http_code' => 0, 'raw_body' => ''];
 
         if (function_exists('curl_init')) {
-            $debugInfo['method'] = 'curl';
             $ch = curl_init();
             curl_setopt_array($ch, [
                 CURLOPT_URL            => $apiUrl,
@@ -504,14 +500,10 @@ switch ($action) {
             ]);
             $resp     = curl_exec($ch);
             $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlErr  = curl_error($ch);
             curl_close($ch);
 
-            $debugInfo['http_code'] = $httpCode;
-            $debugInfo['raw_body']  = $resp === false ? ('curl_error: ' . $curlErr) : substr((string)$resp, 0, 300);
-
             if ($httpCode === 429) {
-                $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui, 'debug' => $debugInfo];
+                $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui];
                 break;
             }
             if ($resp !== false && $httpCode === 200) {
@@ -521,7 +513,6 @@ switch ($action) {
                 }
             }
         } elseif (ini_get('allow_url_fopen')) {
-            $debugInfo['method'] = 'file_get_contents';
             $ctx  = stream_context_create(['http' => [
                 'timeout'       => 5,
                 'header'        => "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36\r\nAccept: text/plain, */*\r\n",
@@ -529,12 +520,9 @@ switch ($action) {
             ]]);
             $resp = @file_get_contents($apiUrl, false, $ctx);
             $statusLine = $http_response_header[0] ?? '';
-            $debugInfo['http_code']    = (int)preg_replace('/\D/', '', explode(' ', $statusLine)[1] ?? '0');
-            $debugInfo['raw_body']     = substr((string)$resp, 0, 300);
-            $debugInfo['resp_headers'] = array_slice($http_response_header ?? [], 0, 5);
 
             if (str_contains($statusLine, '429')) {
-                $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui, 'debug' => $debugInfo];
+                $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui];
                 break;
             }
             if (str_contains($statusLine, '200') && $resp !== false) {
@@ -543,18 +531,12 @@ switch ($action) {
                     $vendor = $body;
                 }
             }
-        } else {
-            $debugInfo['method'] = 'unavailable';
         }
 
-        // Persist in cache (skip when debug=1 so test calls don't pollute cache)
-        if (!$debug) {
-            $cache[$oui] = ['vendor' => $vendor, 'ts' => time()];
-            saveMacVendorCache($cache);
-        }
+        $cache[$oui] = ['vendor' => $vendor, 'ts' => time()];
+        saveMacVendorCache($cache);
 
         $out = ['success' => true, 'vendor' => $vendor, 'oui' => $oui, 'cached' => false];
-        if ($debug) $out['debug'] = $debugInfo;
         break;
     }
 }
