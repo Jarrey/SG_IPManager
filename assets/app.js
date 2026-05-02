@@ -27,7 +27,130 @@ const App = (() => {
     currentPage:  'overview',
     settings:     {},
     stats:        {},
+    vendorCache:  {},   // oui(6-char-hex) → vendor string
   };
+
+  // ── Device-type icons ────────────────────────────────────────────────────
+  const DEVICE_ICONS = {
+    phone:   { color: '#3b82f6', title: '手机/移动设备',
+      svg: '<path d="M17 2H7a2 2 0 00-2 2v16a2 2 0 002 2h10a2 2 0 002-2V4a2 2 0 00-2-2zm-5 17a1 1 0 110-2 1 1 0 010 2z"/>' },
+    tablet:  { color: '#6366f1', title: '平板设备',
+      svg: '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"/>' },
+    laptop:  { color: '#8b5cf6', title: '笔记本/电脑',
+      svg: '<rect x="2" y="3" width="20" height="14" rx="2"/><path d="M0 21h24" stroke-width="2"/>' },
+    server:  { color: '#06b6d4', title: '服务器/NAS',
+      svg: '<rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><circle cx="6" cy="6" r="1.5" fill="currentColor" stroke="none"/><circle cx="6" cy="18" r="1.5" fill="currentColor" stroke="none"/>' },
+    tv:      { color: '#f59e0b', title: '智能电视',
+      svg: '<rect x="2" y="7" width="20" height="15" rx="2"/><path d="M17 2l-5 5-5-5"/>' },
+    gamepad: { color: '#ec4899', title: '游戏设备',
+      svg: '<rect x="2" y="6" width="20" height="12" rx="5"/><path d="M6 12h4M8 10v4" stroke-linecap="round"/><circle cx="17" cy="11" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none"/>' },
+    speaker: { color: '#10b981', title: '音箱/智能音响',
+      svg: '<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><circle cx="12" cy="14" r="1.5" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="15" y2="6" stroke-linecap="round"/>' },
+    router:  { color: '#f97316', title: '路由器/网络设备',
+      svg: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>' },
+    camera:  { color: '#64748b', title: '摄像头',
+      svg: '<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>' },
+    printer: { color: '#94a3b8', title: '打印机',
+      svg: '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>' },
+    iot:     { color: '#84cc16', title: 'IoT/智能家居',
+      svg: '<path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>' },
+    device:  { color: '#475569', title: '未知设备',
+      svg: '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"/>' },
+  };
+
+  function detectDeviceType(vendor, comment) {
+    const t = ((vendor || '') + ' ' + (comment || '')).toLowerCase();
+    if (/playstation|ps[345]\b|xbox|nintendo|switch\b|gameshell|steam.*link/i.test(t)) return 'gamepad';
+    if (/camera|cam\b|摄像|hikvision|dahua|axis hanwha/i.test(t)) return 'camera';
+    if (/\btv\b|television|电视|smart.?tv|fire.?tv|apple.?tv|chromecast|天猫魔盒|小米盒子/i.test(t)) return 'tv';
+    if (/printer|打印/i.test(t)) return 'printer';
+    if (/speaker|音响|音箱|echo\b|homepod|bose|sonos|harman/i.test(t)) return 'speaker';
+    if (/router|gateway\b|access.?point|\bap\b|路由|mesh\b|ubiquiti|mikrotik|cisco|tp.?link|netgear|asus.?rt|openwrt|zyxel/i.test(t)) return 'router';
+    if (/nas\b|synology|qnap|群晖|server|服务器|proxmox|unraid|truenas/i.test(t)) return 'server';
+    if (/raspberry|orange.?pi|banana.?pi|arduino|esp8266|esp32/i.test(t)) return 'server';
+    if (/macbook|thinkpad|laptop|notebook|笔记本/i.test(t)) return 'laptop';
+    if (/ipad|kindle|\btablet\b|平板/i.test(t)) return 'tablet';
+    if (/插座|socket|plug|smart.?home|\biot\b|智能灯|灯泡|bulb|\blamp\b|暖气/i.test(t)) return 'iot';
+    if (/iphone|android|mobile|phone|手机|smartphone|oppo|vivo|huawei|xiaomi|samsung|oneplus|pixel|realme|honor|motorola|nokia/i.test(t)) return 'phone';
+    // Vendor-only fallback
+    if (/apple inc/i.test(vendor))                            return 'phone';
+    if (/samsung electronics/i.test(vendor))                  return 'phone';
+    if (/raspberry pi/i.test(vendor))                         return 'server';
+    if (/tp-link|ubiquiti|mikrotik|cisco|netgear|zyxel/i.test(vendor)) return 'router';
+    return 'device';
+  }
+
+  function buildDeviceIcon(vendor, comment) {
+    const type = detectDeviceType(vendor, comment);
+    const def  = DEVICE_ICONS[type] || DEVICE_ICONS.device;
+    return `<svg class="device-type-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color:${def.color}" title="${def.title}">${def.svg}</svg>`;
+  }
+
+  // ── Async vendor lookup ──────────────────────────────────────────────────
+  let _vendorLookupTimer = null;
+
+  function scheduleVendorLookup() {
+    clearTimeout(_vendorLookupTimer);
+    _vendorLookupTimer = setTimeout(runVendorLookup, 120);
+  }
+
+  async function runVendorLookup() {
+    // Collect unique OUIs from currently rendered rows
+    const rows = document.querySelectorAll('#ip-tbody tr[data-id]');
+    const pending = [];
+    rows.forEach(row => {
+      const macEl = row.querySelector('.mac-raw');
+      if (!macEl) return;
+      const mac = macEl.dataset.mac || '';
+      if (!mac) return;
+      const oui = mac.replace(/[^a-fA-F0-9]/g, '').toUpperCase().slice(0, 6);
+      if (oui.length < 6) return;
+      if (state.vendorCache[oui] !== undefined) {
+        // Already cached — refresh icons that are still showing spinner
+        applyVendorToRow(row, oui, state.vendorCache[oui], mac);
+      } else {
+        pending.push({ row, mac, oui });
+      }
+    });
+
+    // De-duplicate OUIs
+    const seen = new Set();
+    const unique = pending.filter(({ oui }) => {
+      if (seen.has(oui)) return false;
+      seen.add(oui);
+      return true;
+    });
+
+    // Fetch sequentially with a small delay to respect rate limits
+    for (const { oui, mac } of unique) {
+      try {
+        const r = await api('lookup_mac', { mac });
+        if (r?.success !== undefined) {
+          const vendor = r.vendor || '';
+          state.vendorCache[oui] = vendor;
+          // Apply to all rows with this OUI
+          document.querySelectorAll(`#ip-tbody tr[data-id] .mac-raw[data-oui="${oui}"]`).forEach(el => {
+            applyVendorToRow(el.closest('tr'), oui, vendor, mac);
+          });
+        }
+      } catch (_) { /* ignore network errors */ }
+      await new Promise(res => setTimeout(res, 150)); // 150 ms between requests
+    }
+  }
+
+  function applyVendorToRow(row, oui, vendor, mac) {
+    if (!row) return;
+    const iconEl  = row.querySelector('.device-icon-wrap');
+    const nameEl  = row.querySelector('.vendor-name');
+    const comment = row.querySelector('.col-comment')?.textContent || '';
+    if (iconEl)  iconEl.innerHTML  = buildDeviceIcon(vendor, comment);
+    if (nameEl)  nameEl.textContent = vendor ? truncateVendor(vendor) : '';
+    if (nameEl)  nameEl.title       = vendor;
+  }
+
+  function truncateVendor(v) {
+    return v.length > 22 ? v.slice(0, 20) + '…' : v;
+  }
 
   // ── API ──────────────────────────────────────────────────────────────────
   async function api(action, params = {}, method = 'GET') {
@@ -231,6 +354,9 @@ const App = (() => {
         updateBulkUI();
       });
     });
+
+    // Async MAC vendor lookup for visible rows
+    scheduleVendorLookup();
   }
 
   function renderRow(ip) {
@@ -266,9 +392,15 @@ const App = (() => {
     </div>
   </td>
   <td class="col-mac">
-    <div class="ip-cell">
-      <span>${esc(ip.mac || '—')}</span>
-      ${ip.mac ? `<button class="copy-btn" data-copy="${esc(ip.mac)}" title="复制 MAC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>` : ''}
+    <div class="mac-cell-wrap">
+      <div class="device-icon-wrap" title="">${buildDeviceIcon('', ip.comment || '')}</div>
+      <div class="mac-inner">
+        <div class="ip-cell">
+          <span class="mac-raw" data-mac="${esc(ip.mac || '')}" data-oui="${(ip.mac||'').replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6)}">${esc(ip.mac || '—')}</span>
+          ${ip.mac ? `<button class="copy-btn" data-copy="${esc(ip.mac)}" title="复制 MAC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>` : ''}
+        </div>
+        <div class="vendor-name" title="">${ip.mac ? (() => { const oui=(ip.mac.replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6)); const v=state.vendorCache[oui]; return v ? truncateVendor(v) : ''; })() : ''}</div>
+      </div>
     </div>
   </td>
   <td class="col-iface">${esc(ip.interface || '')}</td>

@@ -447,6 +447,63 @@ switch ($action) {
         $out = ['success' => true];
         break;
     }
+
+    case 'lookup_mac': {
+        // Read-only GET endpoint — no CSRF required
+        $rawMac = trim($_GET['mac'] ?? '');
+        // Normalize to hex digits only, uppercase
+        $hex = strtoupper(preg_replace('/[^a-fA-F0-9]/', '', $rawMac));
+        if (strlen($hex) < 6) {
+            $out = ['success' => false, 'error' => 'Invalid MAC address'];
+            break;
+        }
+        $oui = substr($hex, 0, 6); // first 3 bytes
+
+        // Check local cache (valid 30 days)
+        $cache = getMacVendorCache();
+        if (isset($cache[$oui]) && (time() - ($cache[$oui]['ts'] ?? 0)) < 86400 * 30) {
+            $out = ['success' => true, 'vendor' => $cache[$oui]['vendor'], 'oui' => $oui, 'cached' => true];
+            break;
+        }
+
+        // Query macvendors.com (free, no API key needed)
+        $formatted = implode(':', str_split(strtolower($oui), 2));
+        $vendor = '';
+        $apiUrl = 'https://api.macvendors.com/' . urlencode($formatted);
+
+        if (function_exists('curl_init')) {
+            $ch = curl_init($apiUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 4,
+                CURLOPT_USERAGENT      => 'SG-IPManager/1.0',
+                CURLOPT_FAILONERROR    => false,
+            ]);
+            $resp = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+            if ($resp !== false && $httpCode === 200 && strlen(trim($resp)) < 200) {
+                $vendor = trim($resp);
+            }
+        } elseif (ini_get('allow_url_fopen')) {
+            $ctx  = stream_context_create(['http' => [
+                'timeout'       => 4,
+                'header'        => "User-Agent: SG-IPManager/1.0\r\n",
+                'ignore_errors' => true,
+            ]]);
+            $resp = @file_get_contents($apiUrl, false, $ctx);
+            if ($resp && !str_contains($resp, '"errors"') && strlen(trim($resp)) < 200) {
+                $vendor = trim($resp);
+            }
+        }
+
+        // Persist in cache
+        $cache[$oui] = ['vendor' => $vendor, 'ts' => time()];
+        saveMacVendorCache($cache);
+
+        $out = ['success' => true, 'vendor' => $vendor, 'oui' => $oui, 'cached' => false];
+        break;
+    }
 }
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE);

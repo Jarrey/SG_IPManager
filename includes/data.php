@@ -175,3 +175,14 @@ function updatePingResult(string $ip, array $result): array {
     savePingCache($cache);
     return $cache[$ip];
 }
+
+// ── MAC vendor cache ──────────────────────────────────────────────────────────
+
+function getMacVendorCache(): array {
+    if (!file_exists(MAC_VENDOR_CACHE_FILE)) return [];
+    return json_decode(file_get_contents(MAC_VENDOR_CACHE_FILE), true) ?: [];
+}
+
+function saveMacVendorCache(array $cache): void {
+    _atomicWriteData(MAC_VENDOR_CACHE_FILE, json_encode($cache, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
