@@ -500,7 +500,7 @@ switch ($action) {
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 3,
                 CURLOPT_HTTPHEADER     => ['Accept: text/plain, */*'],
-                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYPEER => false,
             ]);
             $resp     = curl_exec($ch);
             $httpCode = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
