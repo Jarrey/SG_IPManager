@@ -20,7 +20,7 @@ load_env() {
 load_env
 
 HTTP_PORT=${HTTP_PORT:-8080}
-HTTPS_PORT=${HTTPS_PORT:-}
+HTTPS_PORT=${HTTPS_PORT:-8443}
 SSL_CERT_PATH=${SSL_CERT_PATH:-/etc/nginx/ssl/server.crt}
 SSL_KEY_PATH=${SSL_KEY_PATH:-/etc/nginx/ssl/server.key}
 

@@ -18,6 +18,6 @@ WORKDIR /var/www/html
 RUN chmod +x /usr/local/bin/start.sh \
  && chown -R www-data:www-data /var/www/html
 
-EXPOSE 8080
+EXPOSE 8080 8443
 
 CMD ["/usr/local/bin/start.sh"]
