@@ -387,6 +387,23 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         </div>
         <?php endif; ?>
 
+        <!-- Cache management -->
+        <div class="card">
+          <div class="card-header">缓存管理</div>
+          <div class="card-body">
+            <div class="form-group">
+              <label style="color:var(--fg2)">MAC 厂商缓存</label>
+              <p style="font-size:.82rem;color:var(--fg4);margin:.25rem 0 .6rem">查询结果会在本地缓存 30 天。如果库中存在错误结果，可清除后重新查询。</p>
+              <button id="btn-clear-mac-cache" class="btn btn-outline btn-sm">清除厂商缓存</button>
+            </div>
+            <div class="form-group" style="margin-top:1rem">
+              <label style="color:var(--fg2)">Ping 缓存</label>
+              <p style="font-size:.82rem;color:var(--fg4);margin:.25rem 0 .6rem">清除所有已检测的在线状态记录。</p>
+              <button id="btn-clear-ping-cache" class="btn btn-outline btn-sm">清除 Ping 缓存</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 

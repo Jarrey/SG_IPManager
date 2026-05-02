@@ -414,11 +414,16 @@ const App = (() => {
     ${ip.mac ? (() => {
       const oui   = (ip.mac.replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6));
       const v     = state.vendorCache[oui] !== undefined ? state.vendorCache[oui] : null;
-      const label = v !== null ? getVendorLabel(v, ip.comment || '') : '&hellip;';
-      const title = v || '';
+      if (v === null) {
+        // Still loading — show spinner, async lookup will update it
+        return `<div class="vendor-cell vendor-loading">
+          <svg class="device-type-icon s-loading" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--fg4)"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+          <span class="vendor-name" style="color:var(--fg4)">...</span>
+        </div>`;
+      }
       return `<div class="vendor-cell">
-        <div class="device-icon-wrap">${buildDeviceIcon(v || '', ip.comment || '')}</div>
-        <span class="vendor-name" title="${esc(title)}">${label}</span>
+        <div class="device-icon-wrap">${buildDeviceIcon(v, ip.comment || '')}</div>
+        <span class="vendor-name" title="${esc(v)}">${getVendorLabel(v, ip.comment || '')}</span>
       </div>`;
     })() : ''}
   </td>
@@ -600,8 +605,9 @@ const App = (() => {
       document.getElementById('ip-form-enabled').checked= true;
     }
     openModal('modal-ip');
-    // Show vendor hint for the current MAC value
-    updateFormVendorHint(id ? (state.ips.find(x=>x.id===id)?.mac || '') : '');
+    // Read the MAC that was just populated into the form field
+    const currentMac = document.getElementById('ip-form-mac').value;
+    updateFormVendorHint(currentMac);
     setTimeout(() => document.getElementById('ip-form-ip').focus(), 100);
   }
 
@@ -952,6 +958,20 @@ const App = (() => {
     }, 'POST');
     if (r?.success) { toast('设置已保存', 'success'); state.settings = r.settings; }
     else toast(r?.error || '保存失败', 'error');
+  });
+
+  document.getElementById('btn-clear-mac-cache')?.addEventListener('click', async () => {
+    const r = await api('clear_mac_vendor_cache', {}, 'POST');
+    if (r?.success) {
+      state.vendorCache = {};
+      toast('厂商缓存已清除，重新加载列表后将重新查询', 'success');
+    } else toast('清除失败', 'error');
+  });
+
+  document.getElementById('btn-clear-ping-cache')?.addEventListener('click', async () => {
+    const r = await api('clear_ping_cache', {}, 'POST');
+    if (r?.success) { toast('Ping 缓存已清除', 'success'); loadIPs(); loadStats(); }
+    else toast('清除失败', 'error');
   });
 
   function renderSubnetList(subnets) {

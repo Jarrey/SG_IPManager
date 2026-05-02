@@ -260,6 +260,13 @@ switch ($action) {
         break;
     }
 
+    case 'clear_mac_vendor_cache': {
+        if ($method !== 'POST') { http_response_code(405); break; }
+        saveMacVendorCache([]);
+        $out = ['success' => true];
+        break;
+    }
+
     // ── Import CSV ──────────────────────────────────────────────────────────
     case 'import_csv': {
         if ($method !== 'POST') { http_response_code(405); break; }
@@ -466,47 +473,58 @@ switch ($action) {
             break;
         }
 
-        // Query macvendors.com (free, no API key needed)
-        // Note: do NOT urlencode the formatted MAC — colons must remain as-is in the path
-        $formatted = implode(':', str_split(strtolower($oui), 2));
-        $vendor = '';
-        $apiUrl = 'https://api.macvendors.com/' . $formatted;
+        // Query macvendors.com — use full MAC with dashes (e.g. 00-1f-d0-98-5a-c6)
+        // Colons in URL paths get silently percent-encoded by some HTTP clients/proxies
+        $hexPairs  = str_split(strtolower($hex), 2);
+        $formatted = implode('-', $hexPairs);
+        $vendor    = '';
+        $apiUrl    = 'https://api.macvendors.com/' . $formatted;
 
         if (function_exists('curl_init')) {
-            $ch = curl_init($apiUrl);
+            $ch = curl_init();
             curl_setopt_array($ch, [
+                CURLOPT_URL            => $apiUrl,
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => 5,
                 CURLOPT_USERAGENT      => 'SG-IPManager/1.0',
                 CURLOPT_FAILONERROR    => false,
                 CURLOPT_FOLLOWLOCATION => true,
                 CURLOPT_MAXREDIRS      => 3,
+                CURLOPT_HTTPHEADER     => ['Accept: text/plain'],
             ]);
             $resp     = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
             if ($httpCode === 429) {
-                // Rate-limited — return error without caching so the next request retries
                 $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui];
                 break;
             }
-            if ($resp !== false && $httpCode === 200 && strlen(trim($resp)) < 200) {
-                $vendor = trim($resp);
+            if ($resp !== false && $httpCode === 200) {
+                $body = trim($resp);
+                // Ignore JSON error responses like {"errors":{...}}
+                if (strlen($body) > 0 && $body[0] !== '{' && strlen($body) < 200) {
+                    $vendor = $body;
+                }
             }
         } elseif (ini_get('allow_url_fopen')) {
             $ctx  = stream_context_create(['http' => [
                 'timeout'       => 5,
-                'header'        => "User-Agent: SG-IPManager/1.0\r\n",
+                'header'        => "User-Agent: SG-IPManager/1.0\r\nAccept: text/plain\r\n",
                 'ignore_errors' => true,
             ]]);
             $resp = @file_get_contents($apiUrl, false, $ctx);
-            // Check HTTP status from response headers
-            if (isset($http_response_header) && str_contains(implode('\n', $http_response_header), '429')) {
-                $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui];
-                break;
-            }
-            if ($resp && !str_contains($resp, '"errors"') && strlen(trim($resp)) < 200) {
-                $vendor = trim($resp);
+            if (isset($http_response_header)) {
+                $statusLine = $http_response_header[0] ?? '';
+                if (str_contains($statusLine, '429')) {
+                    $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui];
+                    break;
+                }
+                if (str_contains($statusLine, '200') && $resp !== false) {
+                    $body = trim($resp);
+                    if (strlen($body) > 0 && $body[0] !== '{' && strlen($body) < 200) {
+                        $vendor = $body;
+                    }
+                }
             }
         }
 
