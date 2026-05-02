@@ -343,40 +343,47 @@ tbody tr.disabled-row { opacity: .5; }
 .col-check  { width: 36px; }
 .col-status { width: 60px; text-align: center; }
 .col-ip     { min-width: 130px; font-family: monospace; font-size: .9rem; }
-.col-mac    { min-width: 180px; font-family: monospace; font-size: .85rem; color: var(--fg2); }
+.col-mac    { min-width: 150px; font-family: monospace; font-size: .85rem; color: var(--fg2); }
+.col-vendor { min-width: 160px; }
 
-/* MAC cell with device icon and vendor name */
-.mac-cell-wrap {
+/* Vendor cell */
+.vendor-cell {
   display: flex;
-  align-items: flex-start;
-  gap: .45rem;
+  align-items: center;
+  gap: .4rem;
 }
-.device-icon-wrap {
-  flex-shrink: 0;
-  margin-top: 2px;
+.vendor-cell .vendor-name {
+  font-size: .78rem;
+  color: var(--fg2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
 }
+.device-icon-wrap { flex-shrink: 0; }
 .device-type-icon {
   width: 18px;
   height: 18px;
   display: block;
   opacity: .85;
 }
-.mac-inner {
+
+/* MAC vendor hint below input in form */
+.mac-vendor-hint {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
+  align-items: center;
+  gap: .4rem;
+  margin-top: .35rem;
+  padding: .3rem .5rem;
+  background: var(--bg2);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: .8rem;
+  color: var(--fg2);
 }
-.vendor-name {
-  font-family: sans-serif;
-  font-size: .72rem;
-  color: var(--fg4);
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 150px;
-}
+.mac-vendor-hint.hidden { display: none; }
+.vendor-hint-name { font-weight: 500; }
+.vendor-hint-loading { color: var(--fg4); font-style: italic; }
 .col-iface  { min-width: 70px; }
 .col-comment{ min-width: 150px; }
 .col-gw     { min-width: 120px; color: var(--fg3); font-size: .82rem; }
@@ -801,7 +808,7 @@ select { cursor: pointer; appearance: none;
   .io-grid, .settings-grid { grid-template-columns: 1fr; }
   .form-row { grid-template-columns: 1fr; }
   .btn-label { display: none; }
-  .col-gw, .col-mac { display: none; }
+  .col-gw, .col-mac, .col-vendor { display: none; }
   .page-title { flex-direction: column; align-items: flex-start; }
   .page-actions { width: 100%; }
 }

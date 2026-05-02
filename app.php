@@ -219,7 +219,8 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
               <th class="col-check"><input type="checkbox" id="select-all"></th>
               <th class="col-status">状态</th>
               <th class="sortable col-ip" data-col="ip_addr">IP 地址 <span class="sort-icon">↕</span></th>
-              <th class="sortable col-mac" data-col="mac">MAC / 厂商 <span class="sort-icon">↕</span></th>
+              <th class="sortable col-mac" data-col="mac">MAC <span class="sort-icon">↕</span></th>
+              <th class="col-vendor">厂 商</th>
               <th class="sortable col-iface" data-col="interface">接口 <span class="sort-icon">↕</span></th>
               <th class="sortable col-comment" data-col="comment">备 注 <span class="sort-icon">↕</span></th>
               <th class="col-gw">网 关</th>
@@ -411,6 +412,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         <div class="form-group">
           <label>MAC 地址</label>
           <input type="text" id="ip-form-mac" class="input-full" placeholder="AA:BB:CC:DD:EE:FF">
+          <div id="mac-vendor-hint" class="mac-vendor-hint hidden"></div>
         </div>
       </div>
       <div class="form-row">

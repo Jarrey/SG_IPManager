@@ -140,12 +140,13 @@ const App = (() => {
 
   function applyVendorToRow(row, oui, vendor, mac) {
     if (!row) return;
-    const iconEl  = row.querySelector('.device-icon-wrap');
-    const nameEl  = row.querySelector('.vendor-name');
-    const comment = row.querySelector('.col-comment')?.textContent || '';
-    if (iconEl)  iconEl.innerHTML  = buildDeviceIcon(vendor, comment);
-    if (nameEl)  nameEl.textContent = vendor ? truncateVendor(vendor) : '';
-    if (nameEl)  nameEl.title       = vendor;
+    const vendorCell = row.querySelector('.col-vendor');
+    const comment    = row.querySelector('.col-comment')?.textContent || '';
+    if (!vendorCell) return;
+    vendorCell.innerHTML = `<div class="vendor-cell">
+      <div class="device-icon-wrap">${buildDeviceIcon(vendor, comment)}</div>
+      <span class="vendor-name" title="${vendor.replace(/"/g,'&quot;')}">${vendor ? truncateVendor(vendor) : ''}</span>
+    </div>`;
   }
 
   function truncateVendor(v) {
@@ -392,16 +393,20 @@ const App = (() => {
     </div>
   </td>
   <td class="col-mac">
-    <div class="mac-cell-wrap">
-      <div class="device-icon-wrap" title="">${buildDeviceIcon('', ip.comment || '')}</div>
-      <div class="mac-inner">
-        <div class="ip-cell">
-          <span class="mac-raw" data-mac="${esc(ip.mac || '')}" data-oui="${(ip.mac||'').replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6)}">${esc(ip.mac || '—')}</span>
-          ${ip.mac ? `<button class="copy-btn" data-copy="${esc(ip.mac)}" title="复制 MAC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>` : ''}
-        </div>
-        <div class="vendor-name" title="">${ip.mac ? (() => { const oui=(ip.mac.replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6)); const v=state.vendorCache[oui]; return v ? truncateVendor(v) : ''; })() : ''}</div>
-      </div>
+    <div class="ip-cell">
+      <span class="mac-raw" data-mac="${esc(ip.mac || '')}" data-oui="${(ip.mac||'').replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6)}">${esc(ip.mac || '—')}</span>
+      ${ip.mac ? `<button class="copy-btn" data-copy="${esc(ip.mac)}" title="复制 MAC"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>` : ''}
     </div>
+  </td>
+  <td class="col-vendor">
+    ${ip.mac ? (() => {
+      const oui = (ip.mac.replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6));
+      const v   = state.vendorCache[oui] || '';
+      return `<div class="vendor-cell">
+        <div class="device-icon-wrap">${buildDeviceIcon(v, ip.comment || '')}</div>
+        <span class="vendor-name" title="${esc(v)}">${v ? truncateVendor(v) : ''}</span>
+      </div>`;
+    })() : ''}
   </td>
   <td class="col-iface">${esc(ip.interface || '')}</td>
   <td class="col-comment">${comment}${tags ? '<br>' + tags : ''}${ip.notes ? `<br><small style="color:var(--fg3)">${esc(ip.notes)}</small>` : ''}</td>
@@ -581,7 +586,43 @@ const App = (() => {
       document.getElementById('ip-form-enabled').checked= true;
     }
     openModal('modal-ip');
+    // Show vendor hint for the current MAC value
+    updateFormVendorHint(id ? (state.ips.find(x=>x.id===id)?.mac || '') : '');
     setTimeout(() => document.getElementById('ip-form-ip').focus(), 100);
+  }
+
+  // MAC input → live vendor hint
+  let _formVendorTimer = null;
+  document.getElementById('ip-form-mac').addEventListener('input', function () {
+    clearTimeout(_formVendorTimer);
+    _formVendorTimer = setTimeout(() => updateFormVendorHint(this.value), 500);
+  });
+
+  async function updateFormVendorHint(macVal) {
+    const hintEl = document.getElementById('mac-vendor-hint');
+    if (!hintEl) return;
+    const hex = (macVal || '').replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+    if (hex.length < 6) { hintEl.innerHTML = ''; hintEl.classList.add('hidden'); return; }
+    const oui = hex.slice(0, 6);
+
+    let vendor = state.vendorCache[oui];
+    if (vendor === undefined) {
+      hintEl.innerHTML = '<span class="vendor-hint-loading">查询中…</span>';
+      hintEl.classList.remove('hidden');
+      try {
+        const r = await api('lookup_mac', { mac: macVal });
+        vendor = (r?.success !== undefined) ? (r.vendor || '') : '';
+        state.vendorCache[oui] = vendor;
+      } catch (_) { vendor = ''; }
+    }
+
+    if (vendor) {
+      hintEl.innerHTML = `${buildDeviceIcon(vendor, '')} <span class="vendor-hint-name">${esc(vendor)}</span>`;
+      hintEl.classList.remove('hidden');
+    } else {
+      hintEl.innerHTML = '<span style="color:var(--fg4);font-size:.8rem">未找到厂商信息</span>';
+      hintEl.classList.remove('hidden');
+    }
   }
 
   document.getElementById('btn-add-ip').addEventListener('click', () => openIPForm());
