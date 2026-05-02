@@ -1,0 +1,17 @@
+services:
+  app:
+    image: docker.io/jarreybj/ipmanager:latest
+    # image: ghcr.io/jarrey/ipmanager:latest
+    container_name: ipmanager
+    ports:
+      - "${HTTP_PORT:-8080}:${HTTP_PORT:-8080}"
+      # Uncomment to enable HTTPS (also set HTTPS_PORT, SSL_CERT_PATH, SSL_KEY_PATH in .env)
+      # - "${HTTPS_PORT:-8443}:${HTTPS_PORT:-8443}"
+    volumes:
+      - ../data:/var/www/html/data
+      - ./.env:/var/www/html/.env
+      # Optional SSL certificate mount:
+      # - ../ssl:/etc/nginx/ssl
+    env_file:
+      - ./.env
+    restart: unless-stopped
