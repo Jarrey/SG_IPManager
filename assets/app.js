@@ -143,14 +143,22 @@ const App = (() => {
     const vendorCell = row.querySelector('.col-vendor');
     const comment    = row.querySelector('.col-comment')?.textContent || '';
     if (!vendorCell) return;
+    const label = getVendorLabel(vendor, comment);
     vendorCell.innerHTML = `<div class="vendor-cell">
       <div class="device-icon-wrap">${buildDeviceIcon(vendor, comment)}</div>
-      <span class="vendor-name" title="${vendor.replace(/"/g,'&quot;')}">${vendor ? truncateVendor(vendor) : ''}</span>
+      <span class="vendor-name" title="${vendor.replace(/"/g,'&quot;')}">${label}</span>
     </div>`;
   }
 
   function truncateVendor(v) {
     return v.length > 22 ? v.slice(0, 20) + '…' : v;
+  }
+
+  // Returns vendor name if known, else the device-type label (e.g. '路由器/网络设备')
+  function getVendorLabel(vendor, comment) {
+    if (vendor) return truncateVendor(vendor);
+    const type = detectDeviceType('', comment);
+    return (DEVICE_ICONS[type] || DEVICE_ICONS.device).title;
   }
 
   // ── API ──────────────────────────────────────────────────────────────────
@@ -400,11 +408,13 @@ const App = (() => {
   </td>
   <td class="col-vendor">
     ${ip.mac ? (() => {
-      const oui = (ip.mac.replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6));
-      const v   = state.vendorCache[oui] || '';
+      const oui   = (ip.mac.replace(/[^a-fA-F0-9]/gi,'').toUpperCase().slice(0,6));
+      const v     = state.vendorCache[oui] !== undefined ? state.vendorCache[oui] : null;
+      const label = v !== null ? getVendorLabel(v, ip.comment || '') : '&hellip;';
+      const title = v || '';
       return `<div class="vendor-cell">
-        <div class="device-icon-wrap">${buildDeviceIcon(v, ip.comment || '')}</div>
-        <span class="vendor-name" title="${esc(v)}">${v ? truncateVendor(v) : ''}</span>
+        <div class="device-icon-wrap">${buildDeviceIcon(v || '', ip.comment || '')}</div>
+        <span class="vendor-name" title="${esc(title)}">${label}</span>
       </div>`;
     })() : ''}
   </td>
@@ -616,13 +626,13 @@ const App = (() => {
       } catch (_) { vendor = ''; }
     }
 
+    const typeLabel = (DEVICE_ICONS[detectDeviceType(vendor, '')] || DEVICE_ICONS.device).title;
     if (vendor) {
-      hintEl.innerHTML = `${buildDeviceIcon(vendor, '')} <span class="vendor-hint-name">${esc(vendor)}</span>`;
-      hintEl.classList.remove('hidden');
+      hintEl.innerHTML = `${buildDeviceIcon(vendor, '')} <span class="vendor-hint-name">${esc(vendor)}</span> <span style="color:var(--fg4);font-size:.75rem">(${typeLabel})</span>`;
     } else {
-      hintEl.innerHTML = '<span style="color:var(--fg4);font-size:.8rem">未找到厂商信息</span>';
-      hintEl.classList.remove('hidden');
+      hintEl.innerHTML = `${buildDeviceIcon('', '')} <span style="color:var(--fg4)">${typeLabel}（未找到厂商）</span>`;
     }
+    hintEl.classList.remove('hidden');
   }
 
   document.getElementById('btn-add-ip').addEventListener('click', () => openIPForm());
