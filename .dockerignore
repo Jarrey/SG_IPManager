@@ -2,7 +2,6 @@
 .github
 data/
 docker/docker-compose.yml
-docker/.env.sample
 docker/nginx.conf
 docker/build-docker.ps1
 *.md
