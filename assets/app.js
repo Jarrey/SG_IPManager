@@ -125,6 +125,10 @@ const App = (() => {
     for (const { oui, mac } of unique) {
       try {
         const r = await api('lookup_mac', { mac });
+        if (r?.error === 'rate_limited') {
+          await new Promise(res => setTimeout(res, 3000)); // back off on rate limit
+          continue;
+        }
         if (r?.success !== undefined) {
           const vendor = r.vendor || '';
           state.vendorCache[oui] = vendor;
@@ -134,7 +138,7 @@ const App = (() => {
           });
         }
       } catch (_) { /* ignore network errors */ }
-      await new Promise(res => setTimeout(res, 150)); // 150 ms between requests
+      await new Promise(res => setTimeout(res, 1200)); // ≥1 s between requests (macvendors.com free tier)
     }
   }
 
@@ -621,7 +625,12 @@ const App = (() => {
       hintEl.classList.remove('hidden');
       try {
         const r = await api('lookup_mac', { mac: macVal });
-        vendor = (r?.success !== undefined) ? (r.vendor || '') : '';
+        if (r?.error === 'rate_limited') {
+          // Don't cache — show temporary notice
+          hintEl.innerHTML = '<span class="vendor-hint-loading">请求过于频繁，稍后再试</span>';
+          return;
+        }
+        vendor = (r?.success) ? (r.vendor || '') : '';
         state.vendorCache[oui] = vendor;
       } catch (_) { vendor = ''; }
     }

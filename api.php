@@ -467,31 +467,44 @@ switch ($action) {
         }
 
         // Query macvendors.com (free, no API key needed)
+        // Note: do NOT urlencode the formatted MAC — colons must remain as-is in the path
         $formatted = implode(':', str_split(strtolower($oui), 2));
         $vendor = '';
-        $apiUrl = 'https://api.macvendors.com/' . urlencode($formatted);
+        $apiUrl = 'https://api.macvendors.com/' . $formatted;
 
         if (function_exists('curl_init')) {
             $ch = curl_init($apiUrl);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 4,
+                CURLOPT_TIMEOUT        => 5,
                 CURLOPT_USERAGENT      => 'SG-IPManager/1.0',
                 CURLOPT_FAILONERROR    => false,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS      => 3,
             ]);
-            $resp = curl_exec($ch);
+            $resp     = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);
+            if ($httpCode === 429) {
+                // Rate-limited — return error without caching so the next request retries
+                $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui];
+                break;
+            }
             if ($resp !== false && $httpCode === 200 && strlen(trim($resp)) < 200) {
                 $vendor = trim($resp);
             }
         } elseif (ini_get('allow_url_fopen')) {
             $ctx  = stream_context_create(['http' => [
-                'timeout'       => 4,
+                'timeout'       => 5,
                 'header'        => "User-Agent: SG-IPManager/1.0\r\n",
                 'ignore_errors' => true,
             ]]);
             $resp = @file_get_contents($apiUrl, false, $ctx);
+            // Check HTTP status from response headers
+            if (isset($http_response_header) && str_contains(implode('\n', $http_response_header), '429')) {
+                $out = ['success' => false, 'error' => 'rate_limited', 'vendor' => '', 'oui' => $oui];
+                break;
+            }
             if ($resp && !str_contains($resp, '"errors"') && strlen(trim($resp)) < 200) {
                 $vendor = trim($resp);
             }
