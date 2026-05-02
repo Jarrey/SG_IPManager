@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1d4ed8"/>
+      <stop offset="100%" stop-color="#0891b2"/>
+    </linearGradient>
+    <linearGradient id="icon" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#67e8f9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background card -->
+  <rect width="120" height="120" rx="22" fill="url(#bg)"/>
+
+  <!-- Subtle grid lines -->
+  <g opacity="0.12" stroke="white" stroke-width="0.8">
+    <line x1="40" y1="10" x2="40" y2="110"/>
+    <line x1="80" y1="10" x2="80" y2="110"/>
+    <line x1="10" y1="40" x2="110" y2="40"/>
+    <line x1="10" y1="80" x2="110" y2="80"/>
+  </g>
+
+  <!-- Corner dots (network nodes) -->
+  <circle cx="40" cy="40" r="4" fill="white" opacity="0.5"/>
+  <circle cx="80" cy="40" r="4" fill="white" opacity="0.5"/>
+  <circle cx="40" cy="80" r="4" fill="white" opacity="0.5"/>
+  <circle cx="80" cy="80" r="4" fill="white" opacity="0.5"/>
+
+  <!-- S-curve (索) -->
+  <path d="M38 52 Q38 42 60 42 Q82 42 82 54 Q82 66 60 66 Q38 66 38 78 Q38 90 60 90 Q82 90 82 80"
+        stroke="url(#icon)" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 格 grid accent: top-right mini grid -->
+  <g fill="url(#icon)" opacity="0.9">
+    <rect x="87" y="18" width="6" height="6" rx="1"/>
+    <rect x="95" y="18" width="6" height="6" rx="1"/>
+    <rect x="87" y="26" width="6" height="6" rx="1"/>
+    <rect x="95" y="26" width="6" height="6" rx="1"/>
+  </g>
+</svg>
