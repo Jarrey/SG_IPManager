@@ -7,8 +7,6 @@ require_once __DIR__ . '/includes/data.php';
 requireAuth();
 
 $username    = $_SESSION['user'];
-$role        = $_SESSION['role'] ?? 'user';
-$mustChange  = !empty($_SESSION['must_change']);
 $csrf        = generateCSRF();
 $settings    = getSettings();
 $defaultGW   = htmlspecialchars($settings['default_gateway'] ?? '192.168.2.1');
@@ -86,7 +84,6 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       <div class="user-avatar"><?= strtoupper(substr($username, 0, 1)) ?></div>
       <div class="user-detail">
         <span class="user-name"><?= htmlspecialchars($username) ?></span>
-        <span class="user-role"><?= $role === 'admin' ? '管理员' : '普通用户' ?></span>
       </div>
     </div>
     <div class="sidebar-links">
@@ -372,12 +369,9 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         <div class="card">
           <div class="card-header">修改密码</div>
           <div class="card-body">
-            <div id="pw-must-change-notice" class="<?= $mustChange ? 'alert alert-warning' : 'hidden' ?>">
-              ⚠ 首次登录，请修改默认密码
-            </div>
             <div class="form-group">
               <label>当前密码</label>
-              <input type="password" id="pw-current" class="input-full" <?= $mustChange ? 'disabled placeholder="（首次登录免填）"' : '' ?>>
+              <input type="password" id="pw-current" class="input-full">
             </div>
             <div class="form-group">
               <label>新密码（至少 6 位）</label>
@@ -391,7 +385,22 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
           </div>
         </div>
 
-        <?php if ($role === 'admin'): ?>
+        <!-- Username change -->
+        <div class="card">
+          <div class="card-header">修改用户名</div>
+          <div class="card-body">
+            <div class="form-group">
+              <label>新用户名（字母/数字/下划线，至少 3 位）</label>
+              <input type="text" id="un-new" class="input-full" placeholder="新用户名">
+            </div>
+            <div class="form-group">
+              <label>当前密码（验证身份）</label>
+              <input type="password" id="un-password" class="input-full">
+            </div>
+            <button id="btn-change-username" class="btn btn-primary">修改用户名</button>
+          </div>
+        </div>
+
         <!-- User management -->
         <div class="card">
           <div class="card-header">
@@ -402,7 +411,6 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
             <div id="user-list"></div>
           </div>
         </div>
-        <?php endif; ?>
 
         <!-- Cache management -->
         <div class="card">
@@ -524,8 +532,6 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
 window.APP = {
   csrf:        <?= json_encode($csrf) ?>,
   username:    <?= json_encode($username) ?>,
-  role:        <?= json_encode($role) ?>,
-  mustChange:  <?= json_encode($mustChange) ?>,
   defaultGW:   <?= json_encode($settings['default_gateway'] ?? '192.168.2.1') ?>,
   defaultIFace:<?= json_encode($settings['default_interface'] ?? 'lan1') ?>,
 };

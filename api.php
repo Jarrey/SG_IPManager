@@ -456,44 +456,53 @@ switch ($action) {
         $confirm = $_POST['confirm_password'] ?? '';
         if (strlen($new) < 6) { $out = ['success' => false, 'error' => '新密码至少 6 位']; break; }
         if ($new !== $confirm) { $out = ['success' => false, 'error' => '两次密码不一致']; break; }
-        if (!($_SESSION['must_change'] ?? false)) {
-            if (!authenticateUser($_SESSION['user'], $cur)) {
-                $out = ['success' => false, 'error' => '当前密码错误']; break;
-            }
+        if (!authenticateUser($_SESSION['user'], $cur)) {
+            $out = ['success' => false, 'error' => '当前密码错误']; break;
         }
         updateUserPassword($_SESSION['user'], $new);
-        $_SESSION['must_change'] = false;
         $out = ['success' => true, 'message' => '密码修改成功'];
         break;
     }
 
-    // ── User management (admin only) ────────────────────────────────────────
+    // ── Change username ─────────────────────────────────────────────────────
+    case 'change_username': {
+        if ($method !== 'POST') { http_response_code(405); break; }
+        $cur     = $_POST['current_password'] ?? '';
+        $newName = preg_replace('/[^a-zA-Z0-9_\-]/', '', $_POST['new_username'] ?? '');
+        if (strlen($newName) < 3) { $out = ['success' => false, 'error' => '用户名至少 3 位']; break; }
+        if (!authenticateUser($_SESSION['user'], $cur)) {
+            $out = ['success' => false, 'error' => '当前密码错误']; break;
+        }
+        $ok = updateUsername($_SESSION['user'], $newName);
+        if (!$ok) { $out = ['success' => false, 'error' => '用户名已被使用']; break; }
+        $_SESSION['user'] = $newName;
+        $out = ['success' => true, 'message' => '用户名修改成功'];
+        break;
+    }
+
+    // ── User management ─────────────────────────────────────────────────────
     case 'get_users': {
-        if (($_SESSION['role'] ?? '') !== 'admin') { http_response_code(403); $out = ['error' => 'Forbidden']; break; }
         $users = array_map(function($u) { unset($u['password']); return $u; }, getUsers());
         $out   = ['success' => true, 'users' => array_values($users)];
         break;
     }
     case 'add_user': {
         if ($method !== 'POST') { http_response_code(405); break; }
-        if (($_SESSION['role'] ?? '') !== 'admin') { http_response_code(403); break; }
         $uname = preg_replace('/[^a-zA-Z0-9_\-]/', '', $_POST['username'] ?? '');
         $pwd   = $_POST['password'] ?? '';
-        $role2 = in_array($_POST['role'] ?? 'user', ['admin','user']) ? $_POST['role'] : 'user';
         if (strlen($uname) < 3) { $out = ['success' => false, 'error' => '用户名至少 3 位']; break; }
         if (strlen($pwd) < 6)   { $out = ['success' => false, 'error' => '密码至少 6 位'];   break; }
         $users = getUsers();
         foreach ($users as $u) { if ($u['username'] === $uname) { $out = ['success' => false, 'error' => '用户名已存在']; break 2; } }
         $users[] = ['id' => count($users) + 1, 'username' => $uname,
-            'password' => password_hash($pwd, PASSWORD_BCRYPT), 'role' => $role2,
-            'must_change' => false, 'created_at' => date('Y-m-d H:i:s'), 'last_login' => null];
+            'password' => password_hash($pwd, PASSWORD_BCRYPT),
+            'created_at' => date('Y-m-d H:i:s'), 'last_login' => null];
         saveUsers($users);
         $out = ['success' => true];
         break;
     }
     case 'delete_user': {
         if ($method !== 'POST') { http_response_code(405); break; }
-        if (($_SESSION['role'] ?? '') !== 'admin') { http_response_code(403); break; }
         $uname = $_POST['username'] ?? '';
         if ($uname === $_SESSION['user']) { $out = ['success' => false, 'error' => '不能删除自己']; break; }
         $users = array_filter(getUsers(), fn($u) => $u['username'] !== $uname);

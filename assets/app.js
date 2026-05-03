@@ -1091,14 +1091,24 @@ const App = (() => {
     if (r?.success) {
       toast('密码修改成功', 'success');
       ['pw-current','pw-new','pw-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-      document.getElementById('pw-must-change-notice')?.classList.add('hidden');
-      document.getElementById('pw-current')?.removeAttribute('disabled');
+    } else toast(r?.error || '修改失败', 'error');
+  });
+
+  // Change username
+  document.getElementById('btn-change-username')?.addEventListener('click', async () => {
+    const payload = {
+      new_username:     document.getElementById('un-new').value.trim(),
+      current_password: document.getElementById('un-password').value,
+    };
+    const r = await api('change_username', payload, 'POST');
+    if (r?.success) {
+      toast('用户名修改成功，即将重新登录', 'success');
+      setTimeout(() => { window.location.href = 'logout.php'; }, 1500);
     } else toast(r?.error || '修改失败', 'error');
   });
 
   // User management
   async function renderUserList() {
-    if (cfg.role !== 'admin') return;
     const r = await api('get_users');
     if (!r?.success) return;
     const el = document.getElementById('user-list');
@@ -1106,7 +1116,6 @@ const App = (() => {
     el.innerHTML = r.users.map(u => `
       <div class="user-row">
         <div class="user-row-name">${esc(u.username)}</div>
-        <span class="badge badge-${u.role}">${u.role === 'admin' ? '管理员' : '普通用户'}</span>
         ${u.last_login ? `<span style="font-size:.75rem;color:var(--fg3)">${esc(u.last_login.slice(0,16))}</span>` : ''}
         ${u.username !== cfg.username ? `<button class="btn btn-ghost btn-xs" data-del-user="${esc(u.username)}" style="color:var(--red);margin-left:auto">删除</button>` : ''}
       </div>
@@ -1128,9 +1137,6 @@ const App = (() => {
     document.getElementById('confirm-msg').innerHTML = `
       <div class="form-group"><label>用户名（字母/数字/下划线，≥3位）</label><input id="nu-name" class="input-full"></div>
       <div class="form-group"><label>密码（≥6位）</label><input id="nu-pwd" type="password" class="input-full"></div>
-      <div class="form-group"><label>角色</label>
-        <select id="nu-role" class="input-full"><option value="user">普通用户</option><option value="admin">管理员</option></select>
-      </div>
     `;
     document.getElementById('btn-confirm-ok').textContent = '添加';
     document.getElementById('btn-confirm-ok').className   = 'btn btn-primary';
@@ -1140,7 +1146,6 @@ const App = (() => {
       const r = await api('add_user', {
         username: document.getElementById('nu-name').value,
         password: document.getElementById('nu-pwd').value,
-        role:     document.getElementById('nu-role').value,
       }, 'POST');
       closeModal('modal-confirm');
       document.getElementById('btn-confirm-ok').textContent = '确 认';
@@ -1184,15 +1189,6 @@ const App = (() => {
     setupIO();
     showPage('overview');
     updateIfaceFilter();
-
-    // If must change password, redirect to settings
-    if (cfg.mustChange) {
-      setTimeout(() => {
-        toast('⚠ 请修改默认密码以确保账号安全', 'info', 5000);
-        showPage('settings');
-        setTimeout(() => document.getElementById('pw-new')?.focus(), 300);
-      }, 500);
-    }
   }
 
   init();

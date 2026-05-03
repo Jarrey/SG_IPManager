@@ -4,13 +4,11 @@ require_once __DIR__ . '/config.php';
 function getUsers(): array {
     if (!file_exists(USERS_FILE)) {
         $defaults = [[
-            'id'          => 1,
-            'username'    => 'admin',
-            'password'    => password_hash('admin', PASSWORD_BCRYPT),
-            'role'        => 'admin',
-            'must_change' => true,
-            'created_at'  => date('Y-m-d H:i:s'),
-            'last_login'  => null,
+            'id'         => 1,
+            'username'   => 'admin',
+            'password'   => password_hash('admin', PASSWORD_BCRYPT),
+            'created_at' => date('Y-m-d H:i:s'),
+            'last_login' => null,
         ]];
         _atomicWrite(USERS_FILE, json_encode($defaults, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         return $defaults;
@@ -35,13 +33,28 @@ function updateUserPassword(string $username, string $newPassword): void {
     $users = getUsers();
     foreach ($users as &$user) {
         if ($user['username'] === $username) {
-            $user['password']    = password_hash($newPassword, PASSWORD_BCRYPT);
-            $user['must_change'] = false;
-            $user['updated_at']  = date('Y-m-d H:i:s');
+            $user['password']   = password_hash($newPassword, PASSWORD_BCRYPT);
+            $user['updated_at'] = date('Y-m-d H:i:s');
             break;
         }
     }
     saveUsers($users);
+}
+
+function updateUsername(string $oldUsername, string $newUsername): bool {
+    $users = getUsers();
+    foreach ($users as $u) {
+        if ($u['username'] === $newUsername) return false; // already taken
+    }
+    foreach ($users as &$user) {
+        if ($user['username'] === $oldUsername) {
+            $user['username']   = $newUsername;
+            $user['updated_at'] = date('Y-m-d H:i:s');
+            break;
+        }
+    }
+    saveUsers($users);
+    return true;
 }
 
 function updateUserLastLogin(string $username): void {

@@ -24,9 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $user = authenticateUser($username, $password);
             if ($user) {
-                $_SESSION['user']        = $user['username'];
-                $_SESSION['role']        = $user['role'] ?? 'user';
-                $_SESSION['must_change'] = !empty($user['must_change']);
+                $_SESSION['user'] = $user['username'];
                 generateCSRF();
                 updateUserLastLogin($username);
                 header('Location: app.php');
