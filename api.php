@@ -420,6 +420,9 @@ switch ($action) {
         if (isset($_POST['mac_cache_months'])) {
             $s['mac_cache_months'] = min(24, max(1, (int)$_POST['mac_cache_months']));
         }
+        if (isset($_POST['docker_host_ranges'])) {
+            $s['docker_host_ranges'] = htmlspecialchars(strip_tags(trim((string)$_POST['docker_host_ranges'])), ENT_QUOTES);
+        }
         if (!empty($_POST['subnets'])) {
             $raw = json_decode($_POST['subnets'], true);
             if (is_array($raw)) {

@@ -65,12 +65,12 @@ const App = (() => {
     if (/\btv\b|television|电视|smart.?tv|fire.?tv|apple.?tv|chromecast|天猫魔盒|小米盒子/i.test(t)) return 'tv';
     if (/printer|打印/i.test(t)) return 'printer';
     if (/speaker|音响|音箱|echo|homepod|bose|sonos|harman/i.test(t)) return 'speaker';
-    if (/router|gateway|access.?point|access point|\bap\b|路由|mesh|ubiquiti|mikrotik|cisco|tp.?link|netgear|asus.?rt|openwrt|zyxel/i.test(t)) return 'router';
+    if (/router|gateway|access.?point|access point|\bap\b|路由|mesh|ubiquiti|mikrotik|cisco|tp.?link|netgear|asus.?rt|openwrt|istore|wifi|zyxel/i.test(t)) return 'router';
     if (/nas|synology|qnap|群晖|server|服务器|proxmox|unraid|truenas/i.test(t)) return 'server';
     if (/raspberry|orange.?pi|banana.?pi|arduino|esp8266|esp32/i.test(t)) return 'server';
-    if (/macbook|thinkpad|laptop|notebook|Surface|笔记本/i.test(t)) return 'laptop';
+    if (/macbook|thinkpad|laptop|notebook|surface|mac|windows|笔记本/i.test(t)) return 'laptop';
     if (/ipad|kindle|tablet|平板/i.test(t)) return 'tablet';
-    if (/插座|socket|plug|smart.?home|iot|智能灯|灯泡|开关|bulb|lamp|暖气/i.test(t)) return 'iot';
+    if (/插座|socket|plug|smart.?home|iot|智能灯|灯泡|开关|风扇|bulb|lamp|暖气/i.test(t)) return 'iot';
     if (/iphone|android|mobile|phone|手机|smartphone|oppo|vivo|huawei|xiaomi|samsung|oneplus|pixel|realme|honor|motorola|nokia/i.test(t)) return 'phone';
     // Vendor-only fallback
     if (/apple inc/i.test(vendor))                            return 'phone';

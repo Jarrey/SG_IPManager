@@ -85,6 +85,12 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
     </div>
     <div class="sidebar-links">
       <a href="#" onclick="App.showPage('settings');App.openChangePassword();return false;" class="sl-link">修改密码</a>
+      <a href="https://github.com/Jarrey/SG_IPManager" target="_blank" rel="noopener noreferrer" class="sl-link sl-link-github" title="GitHub">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path fill="currentColor" d="M12 .5C5.65.5.5 5.66.5 12.02c0 5.09 3.29 9.41 7.86 10.94.58.1.8-.25.8-.56 0-.27-.01-1.16-.02-2.1-3.2.7-3.88-1.36-3.88-1.36-.52-1.34-1.28-1.69-1.28-1.69-1.04-.72.08-.71.08-.71 1.16.08 1.76 1.19 1.76 1.19 1.02 1.77 2.69 1.26 3.35.96.1-.74.4-1.26.73-1.55-2.55-.29-5.24-1.29-5.24-5.72 0-1.26.45-2.28 1.18-3.09-.12-.29-.51-1.46.11-3.04 0 0 .97-.31 3.18 1.18a10.9 10.9 0 0 1 5.8 0c2.21-1.49 3.18-1.18 3.18-1.18.62 1.58.23 2.75.11 3.04.73.81 1.18 1.83 1.18 3.09 0 4.44-2.69 5.43-5.25 5.72.41.36.77 1.05.77 2.13 0 1.54-.01 2.78-.01 3.16 0 .31.21.67.81.56a11.52 11.52 0 0 0 7.84-10.94C23.5 5.66 18.35.5 12 .5z"/>
+        </svg>
+        <span>GitHub</span>
+      </a>
       <a href="logout.php" class="sl-link sl-link-danger">退 出</a>
     </div>
   </div>
@@ -344,7 +350,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
             </div>
             <div class="form-group">
               <label>Docker 宿主 IP 范围 <small style="color: var(--fg4)">(可选，用于解决 Docker 容器检测宿主机问题)</small></label>
-              <input type="text" id="set-docker-host-ranges" class="input-full" placeholder="如: 192.168.2.6-192.168.2.10 或 192.168.2.6,10.0.0.1" value="<?= esc($settings['docker_host_ranges'] ?? '') ?>">
+              <input type="text" id="set-docker-host-ranges" class="input-full" placeholder="如: 192.168.2.6-192.168.2.10 或 192.168.2.6,10.0.0.1" value="<?= htmlspecialchars($settings['docker_host_ranges'] ?? '', ENT_QUOTES) ?>">
               <small style="color: var(--fg4); display: block; margin-top: 4px">支持范围 (IP1-IP2) 或单个IP，多个用逗号分隔</small>
             </div>
             <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
