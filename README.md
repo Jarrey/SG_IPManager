@@ -85,6 +85,23 @@ The import/export CSV format is compatible with multiple router systems, includi
 3. Login with `admin` / `admin`
 4. Open Settings and update your account username/password
 
+## Docker Deployment
+
+Quick start with Docker Compose:
+
+```bash
+cd docker
+cp .env.sample .env
+docker compose up -d
+```
+
+Then open: `http://localhost:8080`
+
+Notes:
+
+- Persistent data is stored in host path `./data` (mapped to container `/var/www/html/data`)
+- Change `HTTP_PORT` in `docker/.env` if `8080` is already in use
+
 ## Notes
 
 - Ensure the `data/` directory is writable

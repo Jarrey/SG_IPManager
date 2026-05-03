@@ -79,6 +79,23 @@
 3. 登录账户：`admin`，密码：`admin`
 4. 进入设置页，按需修改用户名和密码
 
+## Docker 部署
+
+使用 Docker Compose 快速启动：
+
+```bash
+cd docker
+cp .env.sample .env
+docker compose up -d
+```
+
+启动后访问：`http://localhost:8080`
+
+说明：
+
+- 数据持久化目录为宿主机 `./data`（映射到容器 `/var/www/html/data`）
+- 若 8080 端口占用，可在 `docker/.env` 中修改 `HTTP_PORT`
+
 ## 注意事项
 
 - 确保 `data/` 目录可写
