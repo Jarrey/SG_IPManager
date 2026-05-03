@@ -1079,43 +1079,49 @@ const App = (() => {
     btn.addEventListener('click', handler);
   }
 
-  // Change password
-  document.getElementById('btn-change-pw')?.addEventListener('click', async () => {
-    const payload = {
-      current_password: document.getElementById('pw-current').value,
-      new_password:     document.getElementById('pw-new').value,
-      confirm_password: document.getElementById('pw-confirm').value,
-    };
-    const r = await api('change_password', payload, 'POST');
-    if (r?.success) {
-      // Account settings (username + password, combined)
-      document.getElementById('btn-save-account')?.addEventListener('click', async () => {
-        const newName = document.getElementById('un-new').value.trim();
-        const curPwd  = document.getElementById('pw-current').value;
-        const newPwd  = document.getElementById('pw-new').value;
-        const cfmPwd  = document.getElementById('pw-confirm').value;
-        if (!curPwd) { toast('请填写当前密码', 'error'); return; }
-        if (!newName && !newPwd) { toast('请至少修改用户名或密码之一', 'error'); return; }
-        if (newPwd && newPwd !== cfmPwd) { toast('两次密码不一致', 'error'); return; }
+  // Account settings (username + password, combined)
+  document.getElementById('btn-save-account')?.addEventListener('click', async () => {
+    const newName = document.getElementById('un-new').value.trim();
+    const curPwd  = document.getElementById('pw-current').value;
+    const newPwd  = document.getElementById('pw-new').value;
+    const cfmPwd  = document.getElementById('pw-confirm').value;
 
-        let relogin = false;
-        if (newName) {
-          const r = await api('change_username', { new_username: newName, current_password: curPwd }, 'POST');
-          if (!r?.success) { toast(r?.error || '用户名修改失败', 'error'); return; }
-          relogin = true;
-        }
-        if (newPwd) {
-          const r = await api('change_password', {
-            current_password: curPwd,
-            new_password:     newPwd,
-            confirm_password: cfmPwd,
-          }, 'POST');
-          if (!r?.success) { toast(r?.error || '密码修改失败', 'error'); return; }
-        }
-        toast('保存成功' + (relogin ? '，即将重新登录' : ''), 'success');
-        ['un-new','pw-current','pw-new','pw-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-        if (relogin) setTimeout(() => { window.location.href = 'logout.php'; }, 1500);
-      });
+    if (!curPwd) { toast('请填写当前密码', 'error'); return; }
+    if (!newName && !newPwd) { toast('请至少修改用户名或密码之一', 'error'); return; }
+    if (newPwd && newPwd !== cfmPwd) { toast('两次密码不一致', 'error'); return; }
+
+    let relogin = false;
+    if (newName) {
+      const r = await api('change_username', { new_username: newName, current_password: curPwd }, 'POST');
+      if (!r?.success) { toast(r?.error || '用户名修改失败', 'error'); return; }
+      relogin = true;
+    }
+
+    if (newPwd) {
+      const r = await api('change_password', {
+        current_password: curPwd,
+        new_password:     newPwd,
+        confirm_password: cfmPwd,
+      }, 'POST');
+      if (!r?.success) { toast(r?.error || '密码修改失败', 'error'); return; }
+    }
+
+    toast('保存成功' + (relogin ? '，即将重新登录' : ''), 'success');
+    ['un-new', 'pw-current', 'pw-new', 'pw-confirm'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    if (relogin) setTimeout(() => { window.location.href = 'logout.php'; }, 1500);
+  });
+
+  // ── Interface filter update ───────────────────────────────────────────────
+  async function updateIfaceFilter() {
+    const r = await api('get_stats');
+    if (!r?.success) return;
+    const sel = document.getElementById('filter-iface');
+    if (!sel) return;
+    const cur = sel.value;
+    sel.innerHTML = '<option value="">全部接口</option>';
     (r.interfaces || []).forEach(iface => {
       const opt = document.createElement('option');
       opt.value = iface;
