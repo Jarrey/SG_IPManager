@@ -8,18 +8,44 @@ For the full English documentation, see the content below.
 
 ## Overview
 
-`SG IPManager` is a lightweight PHP local application designed for DHCP static IP management in home and small office networks. It provides a simple web dashboard for user authentication, IP binding management, subnet visualization, and device online/offline checking.
+`SG IPManager` is a lightweight PHP local application designed for DHCP static IP management in home and small office networks. It provides a simple web dashboard for basic user authentication, IP binding management, subnet visualization, and device online/offline checking.
 
 ## Key Features
 
-- User authentication with role management and default admin account `admin/admin`
-- Forced password change on first login
+- Single-user authentication model (no role or permission split)
+- Account settings page to update username and password
 - CSV import/export for DHCP static address lists
 - Supports `dhcp_static.csv` format compatible with RouterOS, MikroTik, iKuai, and other router platforms
 - Automatic encoding detection for UTF-8 and GBK/GB2312 to avoid Chinese comment garbling
 - Visual subnet layout showing assigned and free IP addresses
 - Single IP checking and one-click scan for all addresses
 - Local file-based storage under `data/`
+
+## Screenshots
+
+### Overview Dashboard
+
+![Overview](img/overview.png)
+
+Main panel with summary cards, status indicators, and quick actions.
+
+### IP List
+
+![IP List](img/iplist.png)
+
+Central table for static IP records, filtering, sorting, and status checks.
+
+### Subnet View
+
+![Subnet View](img/iprange.png)
+
+Visual subnet allocation page showing used and free address ranges.
+
+### Import / Export
+
+![Import Export](img/import_export.png)
+
+CSV workflow page for importing existing records and exporting router-compatible files.
 
 ## File Structure
 
@@ -57,7 +83,7 @@ The import/export CSV format is compatible with multiple router systems, includi
 1. Deploy the project to a PHP-enabled server, such as Apache or Nginx
 2. Open `index.php` in a browser
 3. Login with `admin` / `admin`
-4. Change the default password immediately after login
+4. Open Settings and update your account username/password
 
 ## Notes
 
