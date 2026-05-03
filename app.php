@@ -87,7 +87,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       </div>
     </div>
     <div class="sidebar-links">
-      <a href="#" onclick="App.showPage('settings');App.openChangePassword();return false;" class="sl-link">修改密码</a>
+      <a href="#" onclick="App.showPage('settings');return false;" class="sl-link">账号设置</a>
       <a href="logout.php" class="sl-link sl-link-danger">退 出</a>
     </div>
   </div>
@@ -366,49 +366,27 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         </div>
 
         <!-- Password -->
+        <!-- Account settings -->
         <div class="card">
-          <div class="card-header">修改密码</div>
+          <div class="card-header">账号设置</div>
           <div class="card-body">
             <div class="form-group">
-              <label>当前密码</label>
+              <label>新用户名（留空则不修改）</label>
+              <input type="text" id="un-new" class="input-full" placeholder="新用户名（字母/数字/下划线，至少 3 位）">
+            </div>
+            <div class="form-group">
+              <label>当前密码 *</label>
               <input type="password" id="pw-current" class="input-full">
             </div>
             <div class="form-group">
-              <label>新密码（至少 6 位）</label>
+              <label>新密码（留空则不修改，至少 6 位）</label>
               <input type="password" id="pw-new" class="input-full">
             </div>
             <div class="form-group">
               <label>确认新密码</label>
               <input type="password" id="pw-confirm" class="input-full">
             </div>
-            <button id="btn-change-pw" class="btn btn-primary">修改密码</button>
-          </div>
-        </div>
-
-        <!-- Username change -->
-        <div class="card">
-          <div class="card-header">修改用户名</div>
-          <div class="card-body">
-            <div class="form-group">
-              <label>新用户名（字母/数字/下划线，至少 3 位）</label>
-              <input type="text" id="un-new" class="input-full" placeholder="新用户名">
-            </div>
-            <div class="form-group">
-              <label>当前密码（验证身份）</label>
-              <input type="password" id="un-password" class="input-full">
-            </div>
-            <button id="btn-change-username" class="btn btn-primary">修改用户名</button>
-          </div>
-        </div>
-
-        <!-- User management -->
-        <div class="card">
-          <div class="card-header">
-            用户管理
-            <button id="btn-add-user" class="btn btn-xs btn-outline ml-auto">+ 添加用户</button>
-          </div>
-          <div class="card-body">
-            <div id="user-list"></div>
+            <button id="btn-save-account" class="btn btn-primary">保存设置</button>
           </div>
         </div>
 

@@ -967,7 +967,6 @@ const App = (() => {
       macCacheEl.value = String(r.settings.mac_cache_months ?? 6);
     }
     renderSubnetList(r.settings.subnets || []);
-    renderUserList();
   }
 
   document.getElementById('btn-save-settings')?.addEventListener('click', async () => {
@@ -1089,82 +1088,34 @@ const App = (() => {
     };
     const r = await api('change_password', payload, 'POST');
     if (r?.success) {
-      toast('密码修改成功', 'success');
-      ['pw-current','pw-new','pw-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
-    } else toast(r?.error || '修改失败', 'error');
-  });
+      // Account settings (username + password, combined)
+      document.getElementById('btn-save-account')?.addEventListener('click', async () => {
+        const newName = document.getElementById('un-new').value.trim();
+        const curPwd  = document.getElementById('pw-current').value;
+        const newPwd  = document.getElementById('pw-new').value;
+        const cfmPwd  = document.getElementById('pw-confirm').value;
+        if (!curPwd) { toast('请填写当前密码', 'error'); return; }
+        if (!newName && !newPwd) { toast('请至少修改用户名或密码之一', 'error'); return; }
+        if (newPwd && newPwd !== cfmPwd) { toast('两次密码不一致', 'error'); return; }
 
-  // Change username
-  document.getElementById('btn-change-username')?.addEventListener('click', async () => {
-    const payload = {
-      new_username:     document.getElementById('un-new').value.trim(),
-      current_password: document.getElementById('un-password').value,
-    };
-    const r = await api('change_username', payload, 'POST');
-    if (r?.success) {
-      toast('用户名修改成功，即将重新登录', 'success');
-      setTimeout(() => { window.location.href = 'logout.php'; }, 1500);
-    } else toast(r?.error || '修改失败', 'error');
-  });
-
-  // User management
-  async function renderUserList() {
-    const r = await api('get_users');
-    if (!r?.success) return;
-    const el = document.getElementById('user-list');
-    if (!el) return;
-    el.innerHTML = r.users.map(u => `
-      <div class="user-row">
-        <div class="user-row-name">${esc(u.username)}</div>
-        ${u.last_login ? `<span style="font-size:.75rem;color:var(--fg3)">${esc(u.last_login.slice(0,16))}</span>` : ''}
-        ${u.username !== cfg.username ? `<button class="btn btn-ghost btn-xs" data-del-user="${esc(u.username)}" style="color:var(--red);margin-left:auto">删除</button>` : ''}
-      </div>
-    `).join('');
-    el.querySelectorAll('[data-del-user]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const uname = btn.dataset.delUser;
-        const ok    = await confirm('删除用户', `确定删除用户 "${uname}" 吗？`);
-        if (!ok) return;
-        const r2 = await api('delete_user', { username: uname }, 'POST');
-        if (r2?.success) { toast('用户已删除', 'success'); renderUserList(); }
-        else toast(r2?.error || '删除失败', 'error');
+        let relogin = false;
+        if (newName) {
+          const r = await api('change_username', { new_username: newName, current_password: curPwd }, 'POST');
+          if (!r?.success) { toast(r?.error || '用户名修改失败', 'error'); return; }
+          relogin = true;
+        }
+        if (newPwd) {
+          const r = await api('change_password', {
+            current_password: curPwd,
+            new_password:     newPwd,
+            confirm_password: cfmPwd,
+          }, 'POST');
+          if (!r?.success) { toast(r?.error || '密码修改失败', 'error'); return; }
+        }
+        toast('保存成功' + (relogin ? '，即将重新登录' : ''), 'success');
+        ['un-new','pw-current','pw-new','pw-confirm'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+        if (relogin) setTimeout(() => { window.location.href = 'logout.php'; }, 1500);
       });
-    });
-  }
-
-  document.getElementById('btn-add-user')?.addEventListener('click', () => {
-    document.getElementById('confirm-title').textContent = '添加用户';
-    document.getElementById('confirm-msg').innerHTML = `
-      <div class="form-group"><label>用户名（字母/数字/下划线，≥3位）</label><input id="nu-name" class="input-full"></div>
-      <div class="form-group"><label>密码（≥6位）</label><input id="nu-pwd" type="password" class="input-full"></div>
-    `;
-    document.getElementById('btn-confirm-ok').textContent = '添加';
-    document.getElementById('btn-confirm-ok').className   = 'btn btn-primary';
-    openModal('modal-confirm');
-    const btn = document.getElementById('btn-confirm-ok');
-    const handler = async () => {
-      const r = await api('add_user', {
-        username: document.getElementById('nu-name').value,
-        password: document.getElementById('nu-pwd').value,
-      }, 'POST');
-      closeModal('modal-confirm');
-      document.getElementById('btn-confirm-ok').textContent = '确 认';
-      document.getElementById('btn-confirm-ok').className   = 'btn btn-danger';
-      btn.removeEventListener('click', handler);
-      if (r?.success) { toast('用户添加成功', 'success'); renderUserList(); }
-      else toast(r?.error || '添加失败', 'error');
-    };
-    btn.addEventListener('click', handler);
-  });
-
-  // ── Interface filter update ───────────────────────────────────────────────
-  async function updateIfaceFilter() {
-    const r = await api('get_stats');
-    if (!r?.success) return;
-    const sel = document.getElementById('filter-iface');
-    if (!sel) return;
-    const cur = sel.value;
-    sel.innerHTML = '<option value="">全部接口</option>';
     (r.interfaces || []).forEach(iface => {
       const opt = document.createElement('option');
       opt.value = iface;

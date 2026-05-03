@@ -480,37 +480,6 @@ switch ($action) {
         break;
     }
 
-    // ── User management ─────────────────────────────────────────────────────
-    case 'get_users': {
-        $users = array_map(function($u) { unset($u['password']); return $u; }, getUsers());
-        $out   = ['success' => true, 'users' => array_values($users)];
-        break;
-    }
-    case 'add_user': {
-        if ($method !== 'POST') { http_response_code(405); break; }
-        $uname = preg_replace('/[^a-zA-Z0-9_\-]/', '', $_POST['username'] ?? '');
-        $pwd   = $_POST['password'] ?? '';
-        if (strlen($uname) < 3) { $out = ['success' => false, 'error' => '用户名至少 3 位']; break; }
-        if (strlen($pwd) < 6)   { $out = ['success' => false, 'error' => '密码至少 6 位'];   break; }
-        $users = getUsers();
-        foreach ($users as $u) { if ($u['username'] === $uname) { $out = ['success' => false, 'error' => '用户名已存在']; break 2; } }
-        $users[] = ['id' => count($users) + 1, 'username' => $uname,
-            'password' => password_hash($pwd, PASSWORD_BCRYPT),
-            'created_at' => date('Y-m-d H:i:s'), 'last_login' => null];
-        saveUsers($users);
-        $out = ['success' => true];
-        break;
-    }
-    case 'delete_user': {
-        if ($method !== 'POST') { http_response_code(405); break; }
-        $uname = $_POST['username'] ?? '';
-        if ($uname === $_SESSION['user']) { $out = ['success' => false, 'error' => '不能删除自己']; break; }
-        $users = array_filter(getUsers(), fn($u) => $u['username'] !== $uname);
-        saveUsers($users);
-        $out = ['success' => true];
-        break;
-    }
-
     case 'lookup_mac': {
         // Read-only GET endpoint — no CSRF required
         $rawMac = trim($_GET['mac'] ?? '');
