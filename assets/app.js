@@ -384,7 +384,7 @@ const App = (() => {
 
     const pingTimeStr = ip.ping_time != null ? ` ${ip.ping_time}ms` : '';
     const methodStr   = ip.ping_method ? ` · ${ip.ping_method}` : '';
-    const lastCheckStr = ip.last_check ? `<br><small style="color:var(--fg4)">${ip.last_check.slice(11,16)}${pingTimeStr}${methodStr}</small>` : '';
+    const lastCheckStr = ip.last_check ? `${ip.last_check.slice(11,16)}${pingTimeStr}${methodStr}` : '';
 
     const tags = (ip.tags || []).filter(Boolean).map(t => `<span class="tag">${esc(t)}</span>`).join('');
     const comment = [esc(ip.comment || ''), esc(ip.cl_name || '')].filter(Boolean).join(' · ');
