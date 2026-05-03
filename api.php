@@ -26,6 +26,29 @@ if (in_array($method, ['POST', 'DELETE', 'PUT'])) {
 
 $out = ['success' => false, 'error' => 'Unknown action'];
 
+function normalizeMacOuiKey(string $key): string {
+    $hex = strtoupper(preg_replace('/[^a-fA-F0-9]/', '', $key));
+    return substr($hex, 0, 6);
+}
+
+function buildValidVendorCacheMap(array $rawCache, int $ttl): array {
+    $now = time();
+    $map = [];
+    foreach ($rawCache as $rawKey => $entry) {
+        if (!is_array($entry)) continue;
+        $oui = normalizeMacOuiKey((string)$rawKey);
+        if (strlen($oui) < 6) continue;
+        $ts = (int)($entry['ts'] ?? 0);
+        if ($ts <= 0 || ($now - $ts) >= $ttl) continue;
+        $vendor = (string)($entry['vendor'] ?? '');
+        // Keep the newest entry when multiple legacy keys map to same OUI.
+        if (!isset($map[$oui]) || $ts > (int)$map[$oui]['ts']) {
+            $map[$oui] = ['vendor' => $vendor, 'ts' => $ts];
+        }
+    }
+    return $map;
+}
+
 switch ($action) {
 
     // ── Statistics ──────────────────────────────────────────────────────────
@@ -61,6 +84,10 @@ switch ($action) {
     case 'get_ips': {
         $ips   = getIPs();
         $cache = getPingCache();
+        $settings = getSettings();
+        $cacheMonths = min(24, max(1, (int)($settings['mac_cache_months'] ?? 6)));
+        $vendorTtl = (int)round(86400 * 30 * $cacheMonths);
+        $vendorCacheMap = buildValidVendorCacheMap(getMacVendorCache(), $vendorTtl);
 
         // Merge status from ping cache
         foreach ($ips as &$ip) {
@@ -107,7 +134,17 @@ switch ($action) {
             : strtolower($ip[$col] ?? ''), $ips);
         array_multisort($vals, $dir, $ips);
 
-        $out = ['success' => true, 'data' => array_values($ips), 'total' => count($ips)];
+        $vendorCacheSimple = [];
+        foreach ($vendorCacheMap as $oui => $entry) {
+            $vendorCacheSimple[$oui] = $entry['vendor'];
+        }
+
+        $out = [
+            'success' => true,
+            'data' => array_values($ips),
+            'total' => count($ips),
+            'vendor_cache' => $vendorCacheSimple,
+        ];
         break;
     }
 
@@ -478,11 +515,13 @@ switch ($action) {
         // Use configurable TTL (default 6 months) for both known and empty results.
         $ttl = (int)round(86400 * 30 * $cacheMonths);
         $cache = getMacVendorCache();
-        if (isset($cache[$oui])) {
-            if ((time() - ($cache[$oui]['ts'] ?? 0)) < $ttl) {
-                $out = ['success' => true, 'vendor' => $cache[$oui]['vendor'], 'oui' => $oui, 'cached' => true];
-                break;
-            }
+        $validCache = buildValidVendorCacheMap($cache, $ttl);
+        if (isset($validCache[$oui])) {
+            // Promote to canonical key to avoid future key mismatch.
+            $cache[$oui] = $validCache[$oui];
+            saveMacVendorCache($cache);
+            $out = ['success' => true, 'vendor' => $validCache[$oui]['vendor'], 'oui' => $oui, 'cached' => true];
+            break;
         }
 
         // Build URL using full MAC with dashes (e.g. 88-25-93-95-e6-d7)

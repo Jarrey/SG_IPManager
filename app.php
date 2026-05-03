@@ -434,15 +434,12 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         </div>
         <div class="form-group">
           <label>MAC 地址</label>
-          <div class="mac-field-row">
-            <div class="mac-field-input">
-              <input type="text" id="ip-form-mac" class="input-full" placeholder="AA:BB:CC:DD:EE:FF">
-            </div>
-            <div class="mac-field-vendor">
-              <div id="mac-vendor-hint" class="mac-vendor-hint hidden"></div>
-            </div>
-          </div>
+          <input type="text" id="ip-form-mac" class="input-full" placeholder="AA:BB:CC:DD:EE:FF">
         </div>
+      </div>
+      <div class="form-group mac-vendor-row">
+        <label>厂 商</label>
+        <div id="mac-vendor-hint" class="mac-vendor-hint hidden"></div>
       </div>
       <div class="form-row">
         <div class="form-group">

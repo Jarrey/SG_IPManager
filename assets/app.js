@@ -304,6 +304,10 @@ const App = (() => {
     };
     const r = await api('get_ips', params);
     if (!r?.success) return;
+    if (r.vendor_cache && typeof r.vendor_cache === 'object') {
+      // Preload server-side vendor cache so table can render vendor names instantly.
+      state.vendorCache = { ...state.vendorCache, ...r.vendor_cache };
+    }
     state.ips = r.data;
     state.filteredIPs = r.data;
     renderTable();
