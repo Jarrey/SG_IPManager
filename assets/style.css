@@ -130,15 +130,6 @@ svg { display: block; flex-shrink: 0; }
 .sl-link { font-size: .8rem; color: var(--fg3); }
 .sl-link:hover { color: var(--fg1); }
 .sl-link-danger:hover { color: var(--red); }
-.sl-link-github {
-  display: inline-flex;
-  align-items: center;
-  gap: .3rem;
-}
-.sl-link-github svg {
-  width: .95rem;
-  height: .95rem;
-}
 
 #sidebar-overlay {
   display: none;

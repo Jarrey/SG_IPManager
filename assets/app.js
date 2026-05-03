@@ -264,7 +264,12 @@ const App = (() => {
   });
 
   document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', e => { e.preventDefault(); showPage(item.dataset.page); });
+    item.addEventListener('click', e => {
+      const page = item.dataset.page;
+      if (!page) return; // External link item (e.g., GitHub)
+      e.preventDefault();
+      showPage(page);
+    });
   });
 
   // ── Stats ─────────────────────────────────────────────────────────────────
