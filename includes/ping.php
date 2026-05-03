@@ -1,10 +1,73 @@
 <?php
 require_once __DIR__ . '/config.php';
 
-function pingIP(string $ip, int $timeoutMs = 1000): array {
+/**
+ * Check if an IP is in a local/private network range that may not respond to ping
+ * (e.g., Docker host, gateway, or network infrastructure)
+ * Returns true if IP should be treated as local infrastructure
+ */
+function isLocalInfrastructure(string $ip): bool {
+    // Docker internal gateway (default bridge network)
+    $dockerGateway = '172.17.0.1';
+    // Common Docker host aliases
+    if ($ip === $dockerGateway || $ip === '127.0.0.1' || $ip === 'localhost') {
+        return true;
+    }
+    
+    // Check if in private/local ranges
+    $ip_long = ip2long($ip);
+    // 10.0.0.0/8
+    if ($ip_long >= ip2long('10.0.0.0') && $ip_long <= ip2long('10.255.255.255')) return true;
+    // 172.16.0.0/12
+    if ($ip_long >= ip2long('172.16.0.0') && $ip_long <= ip2long('172.31.255.255')) return true;
+    // 192.168.0.0/16
+    if ($ip_long >= ip2long('192.168.0.0') && $ip_long <= ip2long('192.168.255.255')) return true;
+    
+    return false;
+}
+
+/**
+ * Check if IP is within Docker host ranges (configured by user)
+ * Format: "192.168.2.6-192.168.2.10,10.0.0.1" or single IPs
+ */
+function isDockerHostIP(string $ip, string $rangesConfig = ''): bool {
+    if (empty($rangesConfig)) return false;
+    
+    $ip_long = ip2long($ip);
+    if ($ip_long === false) return false;
+    
+    $ranges = array_map('trim', explode(',', $rangesConfig));
+    foreach ($ranges as $range) {
+        if (empty($range)) continue;
+        
+        // Check if it's a range (e.g., "192.168.2.6-192.168.2.10")
+        if (strpos($range, '-') !== false) {
+            [$start, $end] = array_map('trim', explode('-', $range, 2));
+            $start_long = ip2long($start);
+            $end_long = ip2long($end);
+            if ($start_long !== false && $end_long !== false && $ip_long >= $start_long && $ip_long <= $end_long) {
+                return true;
+            }
+        } else {
+            // Single IP
+            $range_long = ip2long($range);
+            if ($range_long !== false && $range_long === $ip_long) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = ''): array {
     $ip = filter_var(trim($ip), FILTER_VALIDATE_IP);
     if (!$ip) {
         return ['online' => false, 'time' => null, 'error' => 'Invalid IP'];
+    }
+
+    // If this IP is marked as Docker host, consider it always online
+    if (isDockerHostIP($ip, $dockerHostRanges)) {
+        return ['online' => true, 'time' => 0, 'method' => 'docker_host'];
     }
 
     $disabled = array_map('trim', explode(',', ini_get('disable_functions') ?: ''));

@@ -342,6 +342,11 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
               <label>MAC 厂商缓存有效期（月）</label>
               <input type="number" id="set-mac-cache-months" class="input-full" min="1" max="24" step="1" value="<?= (int)($settings['mac_cache_months'] ?? 6) ?>">
             </div>
+            <div class="form-group">
+              <label>Docker 宿主 IP 范围 <small style="color: var(--fg4)">(可选，用于解决 Docker 容器检测宿主机问题)</small></label>
+              <input type="text" id="set-docker-host-ranges" class="input-full" placeholder="如: 192.168.2.6-192.168.2.10 或 192.168.2.6,10.0.0.1" value="<?= esc($settings['docker_host_ranges'] ?? '') ?>">
+              <small style="color: var(--fg4); display: block; margin-top: 4px">支持范围 (IP1-IP2) 或单个IP，多个用逗号分隔</small>
+            </div>
             <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
           </div>
         </div>

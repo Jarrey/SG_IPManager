@@ -261,7 +261,8 @@ switch ($action) {
         $addr = filter_var(trim($_GET['ip'] ?? $_POST['ip'] ?? ''), FILTER_VALIDATE_IP);
         if (!$addr) { $out = ['success' => false, 'error' => 'Invalid IP']; break; }
         $settings = getSettings();
-        $result   = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000));
+        $dockerHostRanges = $settings['docker_host_ranges'] ?? '';
+        $result   = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges);
         $saved    = updatePingResult($addr, $result);
         $out      = ['success' => true, 'ip' => $addr, 'online' => $result['online'],
                      'time' => $result['time'], 'method' => $result['method'] ?? null,
@@ -274,11 +275,12 @@ switch ($action) {
         set_time_limit(300);
         $ips      = getIPs();
         $settings = getSettings();
+        $dockerHostRanges = $settings['docker_host_ranges'] ?? '';
         $results  = [];
         foreach ($ips as $entry) {
             $addr = $entry['ip_addr'] ?? '';
             if (!$addr) continue;
-            $r         = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000));
+            $r         = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges);
             $saved     = updatePingResult($addr, $r);
             $results[$addr] = ['online' => $r['online'], 'time' => $r['time'], 'checked_at' => $saved['last_check']];
         }

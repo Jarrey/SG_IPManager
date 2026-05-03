@@ -971,6 +971,7 @@ const App = (() => {
       default_interface: document.getElementById('set-iface').value.trim(),
       ping_timeout:      document.getElementById('set-ping-timeout').value,
       mac_cache_months:  document.getElementById('set-mac-cache-months')?.value || '6',
+      docker_host_ranges:document.getElementById('set-docker-host-ranges')?.value.trim() || '',
       subnets:           JSON.stringify(state.settings.subnets || []),
     }, 'POST');
     if (r?.success) { toast('设置已保存', 'success'); state.settings = r.settings; }
