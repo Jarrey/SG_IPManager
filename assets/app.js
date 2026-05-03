@@ -47,7 +47,7 @@ const App = (() => {
     speaker: { color: '#10b981', title: '音箱/智能音响',
       svg: '<rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="14" r="4"/><circle cx="12" cy="14" r="1.5" fill="currentColor" stroke="none"/><line x1="9" y1="6" x2="15" y2="6" stroke-linecap="round"/>' },
     router:  { color: '#f97316', title: '路由器/网络设备',
-      svg: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>' },
+      svg: '<rect x="3" y="8" width="18" height="12" rx="2"/><line x1="7" y1="8" x2="7" y2="2" stroke-linecap="round"/><line x1="12" y1="8" x2="12" y2="1" stroke-linecap="round"/><line x1="17" y1="8" x2="17" y2="2" stroke-linecap="round"/><circle cx="6" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="9" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.2" fill="currentColor" stroke="none"/>' },
     camera:  { color: '#64748b', title: '摄像头',
       svg: '<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>' },
     printer: { color: '#94a3b8', title: '打印机',
@@ -68,7 +68,7 @@ const App = (() => {
     if (/router|gateway|access.?point|access point|\bap\b|路由|mesh|ubiquiti|mikrotik|cisco|tp.?link|netgear|asus.?rt|openwrt|zyxel/i.test(t)) return 'router';
     if (/nas|synology|qnap|群晖|server|服务器|proxmox|unraid|truenas/i.test(t)) return 'server';
     if (/raspberry|orange.?pi|banana.?pi|arduino|esp8266|esp32/i.test(t)) return 'server';
-    if (/macbook|thinkpad|laptop|notebook|笔记本/i.test(t)) return 'laptop';
+    if (/macbook|thinkpad|laptop|notebook|Surface|笔记本/i.test(t)) return 'laptop';
     if (/ipad|kindle|tablet|平板/i.test(t)) return 'tablet';
     if (/插座|socket|plug|smart.?home|iot|智能灯|灯泡|开关|bulb|lamp|暖气/i.test(t)) return 'iot';
     if (/iphone|android|mobile|phone|手机|smartphone|oppo|vivo|huawei|xiaomi|samsung|oneplus|pixel|realme|honor|motorola|nokia/i.test(t)) return 'phone';
