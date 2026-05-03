@@ -651,11 +651,13 @@ const App = (() => {
       } catch (_) { vendor = ''; }
     }
 
-    const typeLabel = (DEVICE_ICONS[detectDeviceType(vendor, '')] || DEVICE_ICONS.device).title;
+    // Get comment from form to aid device detection
+    const comment = document.getElementById('ip-form-comment').value.trim();
+    const typeLabel = (DEVICE_ICONS[detectDeviceType(vendor, comment)] || DEVICE_ICONS.device).title;
     if (vendor) {
-      hintEl.innerHTML = `${buildDeviceIcon(vendor, '')} <span class="vendor-hint-name">${esc(vendor)}</span> <span style="color:var(--fg4);font-size:.75rem">(${typeLabel})</span>`;
+      hintEl.innerHTML = `${buildDeviceIcon(vendor, comment)} <span class="vendor-hint-name">${esc(vendor)}</span> <span style="color:var(--fg4);font-size:.75rem">(${typeLabel})</span>`;
     } else {
-      hintEl.innerHTML = `${buildDeviceIcon('', '')} <span style="color:var(--fg4)">${typeLabel}（未找到厂商）</span>`;
+      hintEl.innerHTML = `${buildDeviceIcon('', comment)} <span style="color:var(--fg4)">${typeLabel}（未找到厂商）</span>`;
     }
     hintEl.classList.remove('hidden');
   }

@@ -372,7 +372,7 @@ tbody tr.disabled-row { opacity: .5; }
 .mac-vendor-row { margin-top: -.1rem; }
 .mac-vendor-hint {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: .35rem;
   padding: .3rem .55rem;
   background: var(--bg3);
@@ -384,6 +384,7 @@ tbody tr.disabled-row { opacity: .5; }
   width: 100%;
   min-height: 34px;
 }
+.mac-vendor-hint .device-type-icon { align-self: center; }
 .mac-vendor-hint.hidden { display: none; }
 .vendor-hint-name { font-weight: 500; word-break: break-word; }
 .vendor-hint-loading { color: var(--fg4); font-style: italic; }
