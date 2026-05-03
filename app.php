@@ -338,6 +338,10 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
               <label>Ping 超时 (ms)</label>
               <input type="number" id="set-ping-timeout" class="input-full" min="100" max="10000" step="100" value="<?= (int)($settings['ping_timeout'] ?? 1000) ?>">
             </div>
+            <div class="form-group">
+              <label>MAC 厂商缓存有效期（月）</label>
+              <input type="number" id="set-mac-cache-months" class="input-full" min="1" max="24" step="1" value="<?= (int)($settings['mac_cache_months'] ?? 6) ?>">
+            </div>
             <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
           </div>
         </div>
@@ -395,7 +399,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
           <div class="card-body">
             <div class="form-group">
               <label style="color:var(--fg2)">MAC 厂商缓存</label>
-              <p style="font-size:.82rem;color:var(--fg4);margin:.25rem 0 .6rem">查询结果会在本地缓存 30 天。如果库中存在错误结果，可清除后重新查询。</p>
+              <p style="font-size:.82rem;color:var(--fg4);margin:.25rem 0 .6rem">查询结果优先读取本地缓存。缓存有效期可在「常规设置」中调整（默认 6 个月）。</p>
               <button id="btn-clear-mac-cache" class="btn btn-outline btn-sm">清除厂商缓存</button>
             </div>
             <div class="form-group" style="margin-top:1rem">
@@ -430,9 +434,13 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         </div>
         <div class="form-group">
           <label>MAC 地址</label>
-          <div class="mac-input-row">
-            <input type="text" id="ip-form-mac" class="input-full" placeholder="AA:BB:CC:DD:EE:FF">
-            <div id="mac-vendor-hint" class="mac-vendor-hint hidden"></div>
+          <div class="mac-field-row">
+            <div class="mac-field-input">
+              <input type="text" id="ip-form-mac" class="input-full" placeholder="AA:BB:CC:DD:EE:FF">
+            </div>
+            <div class="mac-field-vendor">
+              <div id="mac-vendor-hint" class="mac-vendor-hint hidden"></div>
+            </div>
           </div>
         </div>
       </div>

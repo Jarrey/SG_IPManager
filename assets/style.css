@@ -368,15 +368,22 @@ tbody tr.disabled-row { opacity: .5; }
   opacity: .85;
 }
 
-/* MAC input row — input + vendor hint side by side */
-.mac-input-row {
+/* MAC row — input cell + vendor cell */
+.mac-field-row {
   display: flex;
   align-items: center;
   gap: .6rem;
 }
-.mac-input-row > input { flex: 1; min-width: 0; width: auto; }
+.mac-field-input {
+  flex: 1 1 auto;
+  min-width: 220px;
+}
+.mac-field-vendor {
+  flex: 0 0 180px;
+  min-width: 160px;
+}
 
-/* MAC vendor hint — inline to the right of the input */
+/* MAC vendor hint — in dedicated right-side cell */
 .mac-vendor-hint {
   display: flex;
   align-items: center;
@@ -388,8 +395,8 @@ tbody tr.disabled-row { opacity: .5; }
   font-size: .78rem;
   color: var(--fg2);
   white-space: nowrap;
-  flex-shrink: 0;
-  max-width: 160px;
+  width: 100%;
+  overflow: hidden;
 }
 .mac-vendor-hint.hidden { display: none; }
 .vendor-hint-name { font-weight: 500; max-width: 110px; overflow: hidden; text-overflow: ellipsis; }
@@ -835,6 +842,8 @@ select { cursor: pointer; appearance: none;
   .page-actions { width: 100%; }
   .filter-bar { flex-direction: column; }
   .filter-bar .select-sm { width: 100%; min-width: 0; flex: none; }
+  .mac-field-row { flex-direction: column; align-items: stretch; }
+  .mac-field-input, .mac-field-vendor { min-width: 0; flex: 1 1 auto; }
 }
 @media (max-width: 480px) {
   .stats-grid { grid-template-columns: 1fr 1fr; }

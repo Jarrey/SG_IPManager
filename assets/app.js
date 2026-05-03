@@ -55,7 +55,7 @@ const App = (() => {
     iot:     { color: '#84cc16', title: 'IoT/智能家居',
       svg: '<path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/>' },
     device:  { color: '#475569', title: '未知设备',
-      svg: '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18" stroke-width="3"/>' },
+      svg: '<rect x="7" y="7" width="10" height="10" rx="2"/><path d="M9 3v2M12 3v2M15 3v2M9 19v2M12 19v2M15 19v2M3 9h2M3 12h2M3 15h2M19 9h2M19 12h2M19 15h2"/><path d="M11 10.4a1.7 1.7 0 113 1.1c-.6.5-1.3.9-1.3 1.8"/><line x1="12.5" y1="15.2" x2="12.51" y2="15.2" stroke-width="2.6"/>' },
   };
 
   function detectDeviceType(vendor, comment) {
@@ -70,7 +70,7 @@ const App = (() => {
     if (/raspberry|orange.?pi|banana.?pi|arduino|esp8266|esp32/i.test(t)) return 'server';
     if (/macbook|thinkpad|laptop|notebook|笔记本/i.test(t)) return 'laptop';
     if (/ipad|kindle|\btablet\b|平板/i.test(t)) return 'tablet';
-    if (/插座|socket|plug|smart.?home|\biot\b|智能灯|灯泡|bulb|\blamp\b|暖气/i.test(t)) return 'iot';
+    if (/插座|socket|plug|smart.?home|\biot\b|智能灯|灯泡|开关|bulb|\blamp\b|暖气/i.test(t)) return 'iot';
     if (/iphone|android|mobile|phone|手机|smartphone|oppo|vivo|huawei|xiaomi|samsung|oneplus|pixel|realme|honor|motorola|nokia/i.test(t)) return 'phone';
     // Vendor-only fallback
     if (/apple inc/i.test(vendor))                            return 'phone';
@@ -624,7 +624,11 @@ const App = (() => {
     const hintEl = document.getElementById('mac-vendor-hint');
     if (!hintEl) return;
     const hex = (macVal || '').replace(/[^a-fA-F0-9]/g, '').toUpperCase();
-    if (hex.length < 6) { hintEl.innerHTML = ''; hintEl.classList.add('hidden'); return; }
+    if (hex.length < 6) {
+      hintEl.innerHTML = `${buildDeviceIcon('', '')} <span class="vendor-hint-name">未知设备</span>`;
+      hintEl.classList.remove('hidden');
+      return;
+    }
     const oui = hex.slice(0, 6);
 
     let vendor = state.vendorCache[oui];
@@ -947,6 +951,10 @@ const App = (() => {
     const r = await api('get_settings');
     if (!r?.success) return;
     state.settings = r.settings;
+    const macCacheEl = document.getElementById('set-mac-cache-months');
+    if (macCacheEl) {
+      macCacheEl.value = String(r.settings.mac_cache_months ?? 6);
+    }
     renderSubnetList(r.settings.subnets || []);
     renderUserList();
   }
@@ -956,6 +964,7 @@ const App = (() => {
       default_gateway:   document.getElementById('set-gateway').value.trim(),
       default_interface: document.getElementById('set-iface').value.trim(),
       ping_timeout:      document.getElementById('set-ping-timeout').value,
+      mac_cache_months:  document.getElementById('set-mac-cache-months')?.value || '6',
       subnets:           JSON.stringify(state.settings.subnets || []),
     }, 'POST');
     if (r?.success) { toast('设置已保存', 'success'); state.settings = r.settings; }

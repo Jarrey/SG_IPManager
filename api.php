@@ -378,6 +378,9 @@ switch ($action) {
         if (isset($_POST['ping_timeout'])) {
             $s['ping_timeout'] = min(10000, max(100, (int)$_POST['ping_timeout']));
         }
+        if (isset($_POST['mac_cache_months'])) {
+            $s['mac_cache_months'] = min(24, max(1, (int)$_POST['mac_cache_months']));
+        }
         if (!empty($_POST['subnets'])) {
             $raw = json_decode($_POST['subnets'], true);
             if (is_array($raw)) {
@@ -460,6 +463,8 @@ switch ($action) {
     case 'lookup_mac': {
         // Read-only GET endpoint — no CSRF required
         $rawMac = trim($_GET['mac'] ?? '');
+        $settings = getSettings();
+        $cacheMonths = min(24, max(1, (int)($settings['mac_cache_months'] ?? 6)));
 
         // Normalize to hex digits only, uppercase
         $hex = strtoupper(preg_replace('/[^a-fA-F0-9]/', '', $rawMac));
@@ -470,10 +475,10 @@ switch ($action) {
         $oui = substr($hex, 0, 6); // first 3 bytes (for cache key)
 
         // Check local cache
-        // Known vendors cached 30 days; empty (not-found) results cached only 1 day
+        // Use configurable TTL (default 6 months) for both known and empty results.
+        $ttl = (int)round(86400 * 30 * $cacheMonths);
         $cache = getMacVendorCache();
         if (isset($cache[$oui])) {
-            $ttl = ($cache[$oui]['vendor'] !== '') ? 86400 * 30 : 86400;
             if ((time() - ($cache[$oui]['ts'] ?? 0)) < $ttl) {
                 $out = ['success' => true, 'vendor' => $cache[$oui]['vendor'], 'oui' => $oui, 'cached' => true];
                 break;

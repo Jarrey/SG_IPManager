@@ -121,6 +121,7 @@ function getSettings(): array {
             'default_gateway'   => '192.168.2.1',
             'default_interface' => 'lan1',
             'ping_timeout'      => 1000,
+            'mac_cache_months'  => 6,
         ];
         _atomicWriteData(SETTINGS_FILE, json_encode($default, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         return $default;
