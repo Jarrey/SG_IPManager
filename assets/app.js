@@ -966,6 +966,10 @@ const App = (() => {
     if (macCacheEl) {
       macCacheEl.value = String(r.settings.mac_cache_months ?? 6);
     }
+    const hostArpPathEl = document.getElementById('set-host-arp-path');
+    if (hostArpPathEl) {
+      hostArpPathEl.value = r.settings.host_arp_path ?? '';
+    }
     renderSubnetList(r.settings.subnets || []);
   }
 
@@ -976,6 +980,7 @@ const App = (() => {
       ping_timeout:      document.getElementById('set-ping-timeout').value,
       mac_cache_months:  document.getElementById('set-mac-cache-months')?.value || '6',
       docker_host_ranges:document.getElementById('set-docker-host-ranges')?.value.trim() || '',
+      host_arp_path:     document.getElementById('set-host-arp-path')?.value.trim() || '',
       subnets:           JSON.stringify(state.settings.subnets || []),
     }, 'POST');
     if (r?.success) { toast('设置已保存', 'success'); state.settings = r.settings; }

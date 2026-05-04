@@ -10,6 +10,8 @@ services:
     volumes:
       - ../data:/var/www/html/data
       - ./.env:/var/www/html/.env
+      # Optional host ARP mount for Docker container ARP-based detection:
+      # - /proc/net/arp:/host_proc/net/arp:ro
       # Optional SSL certificate mount:
       # - ../ssl:/etc/nginx/ssl
     env_file:

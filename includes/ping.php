@@ -59,7 +59,7 @@ function isDockerHostIP(string $ip, string $rangesConfig = ''): bool {
     return false;
 }
 
-function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = ''): array {
+function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = '', string $hostArpPath = ''): array {
     $ip = filter_var(trim($ip), FILTER_VALIDATE_IP);
     if (!$ip) {
         return ['online' => false, 'time' => null, 'error' => 'Invalid IP'];
@@ -71,6 +71,12 @@ function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = ''
     }
 
     $disabled = array_map('trim', explode(',', ini_get('disable_functions') ?: ''));
+
+    // 0. ARP / neighbor lookup — fastest for same-LAN devices and local segments
+    if (function_exists('exec') && !in_array('exec', $disabled)) {
+        $r = _arpProbe($ip, $hostArpPath);
+        if ($r['online']) return $r;
+    }
 
     // 1. ICMP ping — fastest and most accurate
     if (function_exists('exec') && !in_array('exec', $disabled)) {
@@ -84,6 +90,63 @@ function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = ''
 
     // 3. HTTP probe — sends actual HTTP request; covers web-only devices (NAS, smart TV, etc.)
     return _pingHTTP($ip, $timeoutMs);
+}
+
+function _arpProbe(string $ip, string $hostArpPath = ''): array {
+    $out = [];
+    $ret = 1;
+    $isWin = (PHP_OS_FAMILY === 'Windows') || (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
+
+    if ($hostArpPath && is_readable($hostArpPath)) {
+        $lines = @file($hostArpPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines !== false) {
+            foreach ($lines as $line) {
+                $parts = preg_split('/\s+/', trim($line));
+                if (count($parts) < 4) {
+                    continue;
+                }
+                if ($parts[0] !== $ip) {
+                    continue;
+                }
+                $mac = strtolower($parts[3] ?? '');
+                $flags = strtolower($parts[2] ?? '');
+                if ($mac !== '00:00:00:00:00:00' && $mac !== '00-00-00-00-00-00' && $flags !== '0x0') {
+                    return ['online' => true, 'time' => 0, 'method' => 'arp'];
+                }
+            }
+        }
+    }
+
+    if ($isWin) {
+        @exec('arp -a ' . escapeshellarg($ip) . ' 2>&1', $out, $ret);
+        foreach ($out as $line) {
+            if (preg_match('/^\s*' . preg_quote($ip, '/') . '\s+([0-9a-fA-F\-]+)\s+(\S+)/', $line, $m)) {
+                $type = strtolower($m[2]);
+                if (!preg_match('/^(incomplete|invalid|timeout)$/', $type)) {
+                    return ['online' => true, 'time' => 0, 'method' => 'arp'];
+                }
+            }
+        }
+    } else {
+        @exec('ip neigh show ' . escapeshellarg($ip) . ' 2>/dev/null', $out, $ret);
+        foreach ($out as $line) {
+            if (preg_match('/\b(lladdr|ether)\b/i', $line) && !preg_match('/\b(incomplete|failed|noarp|unknown)\b/i', $line)) {
+                return ['online' => true, 'time' => 0, 'method' => 'arp'];
+            }
+        }
+
+        if (empty($out)) {
+            @exec('arp -n ' . escapeshellarg($ip) . ' 2>/dev/null', $out, $ret);
+            foreach ($out as $line) {
+                if (preg_match('/^\s*' . preg_quote($ip, '/') . '\s+([0-9a-fA-F\:]+)\s+(\S+)/', $line, $m)
+                    && !preg_match('/\b(incomplete|failed|no entry|no match)\b/i', $line)) {
+                    return ['online' => true, 'time' => 0, 'method' => 'arp'];
+                }
+            }
+        }
+    }
+
+    return ['online' => false, 'time' => 0, 'method' => 'arp'];
 }
 
 function _pingExec(string $ip, int $timeoutMs): array {

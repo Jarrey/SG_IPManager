@@ -350,6 +350,11 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
               <input type="text" id="set-docker-host-ranges" class="input-full" placeholder="如: 192.168.2.6-192.168.2.10 或 192.168.2.6,10.0.0.1" value="<?= htmlspecialchars($settings['docker_host_ranges'] ?? '', ENT_QUOTES) ?>">
               <small style="color: var(--fg4); display: block; margin-top: 4px">支持范围 (IP1-IP2) 或单个IP，多个用逗号分隔</small>
             </div>
+            <div class="form-group">
+              <label>宿主机 ARP 表路径 <small style="color: var(--fg4)">(可选，Docker 容器内读取宿主机 ARP 数据)</small></label>
+              <input type="text" id="set-host-arp-path" class="input-full" placeholder="如: /host_proc/net/arp" value="<?= htmlspecialchars($settings['host_arp_path'] ?? '', ENT_QUOTES) ?>">
+              <small style="color: var(--fg4); display: block; margin-top: 4px">如果容器运行在 Docker 内且需要读取宿主机 ARP 表，请将宿主机 /proc/net/arp 挂载到容器内，并填写该路径。仅在宿主机 ARP 文件可读时才会启用该方式。</small>
+            </div>
             <button id="btn-save-settings" class="btn btn-primary">保存设置</button>
           </div>
         </div>

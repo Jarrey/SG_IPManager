@@ -262,7 +262,8 @@ switch ($action) {
         if (!$addr) { $out = ['success' => false, 'error' => 'Invalid IP']; break; }
         $settings = getSettings();
         $dockerHostRanges = $settings['docker_host_ranges'] ?? '';
-        $result   = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges);
+        $hostArpPath = $settings['host_arp_path'] ?? '';
+        $result   = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges, $hostArpPath);
         $saved    = updatePingResult($addr, $result);
         $out      = ['success' => true, 'ip' => $addr, 'online' => $result['online'],
                      'time' => $result['time'], 'method' => $result['method'] ?? null,
@@ -276,11 +277,12 @@ switch ($action) {
         $ips      = getIPs();
         $settings = getSettings();
         $dockerHostRanges = $settings['docker_host_ranges'] ?? '';
+        $hostArpPath = $settings['host_arp_path'] ?? '';
         $results  = [];
         foreach ($ips as $entry) {
             $addr = $entry['ip_addr'] ?? '';
             if (!$addr) continue;
-            $r         = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges);
+            $r         = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges, $hostArpPath);
             $saved     = updatePingResult($addr, $r);
             $results[$addr] = ['online' => $r['online'], 'time' => $r['time'], 'checked_at' => $saved['last_check']];
         }
@@ -422,6 +424,9 @@ switch ($action) {
         }
         if (isset($_POST['docker_host_ranges'])) {
             $s['docker_host_ranges'] = htmlspecialchars(strip_tags(trim((string)$_POST['docker_host_ranges'])), ENT_QUOTES);
+        }
+        if (isset($_POST['host_arp_path'])) {
+            $s['host_arp_path'] = htmlspecialchars(strip_tags(trim((string)$_POST['host_arp_path'])), ENT_QUOTES);
         }
         if (!empty($_POST['subnets'])) {
             $raw = json_decode($_POST['subnets'], true);
