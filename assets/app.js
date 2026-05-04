@@ -338,20 +338,63 @@ const App = (() => {
     }
     const rows = subnets.map(sn => {
       const s = sn.subnet;
-      const used = sn.used_count;
       const total = sn.total;
       const free = sn.free_count;
-      const usedPct = total > 0 ? Math.round(used / total * 100) : 0;
+      const counts = { online: 0, offline: 0, unchecked: 0, disabled: 0 };
+      sn.used.forEach(u => {
+        if (u.enabled === 'no') counts.disabled++;
+        else counts[u.status] = (counts[u.status] || 0) + 1;
+      });
+      const blocks = buildSubnetSummaryBlocks(counts, free, total, 16);
+      const blockHtml = blocks.map(b => `<span class="subnet-summary-chip ${b.cls}" title="${esc(b.label)} ${b.count}"></span>`).join('');
       return `<div class="subnet-summary-row">
         <div class="subnet-summary-title"><span>${esc(s.name)}</span><span>${esc(s.network)}/${esc(s.prefix)}</span></div>
+        <div class="subnet-summary-chips">${blockHtml}</div>
         <div class="subnet-summary-stats">
-          <span>已分配 ${used}/${total}</span>
+          <span>在线 ${counts.online}</span>
+          <span>离线 ${counts.offline}</span>
+          <span>未检测 ${counts.unchecked}</span>
+          <span>已禁用 ${counts.disabled}</span>
           <span>空闲 ${free}</span>
         </div>
-        <div class="subnet-summary-bar"><div style="width:${usedPct}%"></div></div>
+        <div class="subnet-summary-bar"><div style="width:${total > 0 ? Math.round((total - free) / total * 100) : 0}%"></div></div>
       </div>`;
     });
     list.innerHTML = rows.join('');
+  }
+
+  function buildSubnetSummaryBlocks(counts, free, total, maxBlocks) {
+    if (total <= 0) return [];
+    const segments = [
+      { key: 'online', count: counts.online, cls: 'used-online', label: '在线' },
+      { key: 'offline', count: counts.offline, cls: 'used-offline', label: '离线' },
+      { key: 'unchecked', count: counts.unchecked, cls: 'used-unchecked', label: '未检测' },
+      { key: 'disabled', count: counts.disabled, cls: 'used-disabled', label: '已禁用' },
+      { key: 'free', count: free, cls: 'free', label: '空闲' },
+    ];
+    const blocks = [];
+    const target = Math.min(maxBlocks, total);
+    let remainder = 0;
+    const assigned = segments.map(seg => {
+      const exact = seg.count / total * target;
+      const floored = Math.floor(exact);
+      remainder += exact - floored;
+      return { ...seg, blocks: floored, rem: exact - floored };
+    });
+    let left = target - assigned.reduce((sum, seg) => sum + seg.blocks, 0);
+    assigned.sort((a, b) => b.rem - a.rem);
+    for (const seg of assigned) {
+      if (left > 0 && seg.count > 0) {
+        seg.blocks++;
+        left--;
+      }
+    }
+    assigned.forEach(seg => {
+      for (let i = 0; i < seg.blocks; i++) {
+        blocks.push({ cls: seg.cls, label: seg.label, count: seg.count });
+      }
+    });
+    return blocks;
   }
 
   // Stat card click actions
@@ -782,6 +825,7 @@ const App = (() => {
     const fill     = document.getElementById('ping-progress-fill');
     const doneTxt  = document.getElementById('ping-done');
     const totTxt   = document.getElementById('ping-total');
+    const summary  = document.getElementById('ping-progress-summary');
     const current  = document.getElementById('ping-progress-current');
     const log      = document.getElementById('ping-progress-log');
     wrap.classList.remove('hidden');

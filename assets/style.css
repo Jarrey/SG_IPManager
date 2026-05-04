@@ -245,9 +245,8 @@ svg { display: block; flex-shrink: 0; }
 .overview-item,
 .subnet-summary-row {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: .6rem;
+  flex-direction: column;
+  gap: .5rem;
   padding: .55rem .65rem;
   background: var(--bg3);
   border: 1px solid var(--border);
@@ -284,6 +283,23 @@ svg { display: block; flex-shrink: 0; }
   width: 100%;
   color: var(--fg3);
 }
+.subnet-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: 100%;
+}
+.subnet-summary-chip {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.subnet-summary-chip.used-online   { background: var(--green); }
+.subnet-summary-chip.used-offline  { background: var(--red); }
+.subnet-summary-chip.used-unchecked{ background: var(--accent); }
+.subnet-summary-chip.used-disabled { background: var(--fg4); }
+.subnet-summary-chip.free          { background: var(--bg4); border: 1px solid var(--border); }
 .subnet-summary-bar {
   width: 100%;
   height: 6px;
