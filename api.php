@@ -203,9 +203,10 @@ switch ($action) {
             $ip['mac']       = strtolower(preg_replace('/[^a-fA-F0-9:]/', '', $d['mac'] ?? $ip['mac']));
             $ip['cl_name']   = htmlspecialchars(strip_tags($d['cl_name'] ?? $ip['cl_name'] ?? ''), ENT_QUOTES);
             $ip['comment']   = htmlspecialchars(strip_tags($d['comment'] ?? $ip['comment'] ?? ''), ENT_QUOTES);
-            $ip['gateway']   = filter_var(trim($d['gateway'] ?? ''), FILTER_VALIDATE_IP) ?: ($ip['gateway'] ?? '');
-            $ip['dns1']      = filter_var(trim($d['dns1'] ?? ''), FILTER_VALIDATE_IP) ?: ($ip['dns1'] ?? '');
-            $ip['dns2']      = filter_var(trim($d['dns2'] ?? ''), FILTER_VALIDATE_IP) ?: ($ip['dns2'] ?? '');
+            // Allow clearing: empty submission clears field; not submitted keeps old value
+            $ip['gateway']   = isset($d['gateway']) ? (filter_var(trim($d['gateway']), FILTER_VALIDATE_IP) ?: '') : ($ip['gateway'] ?? '');
+            $ip['dns1']      = isset($d['dns1'])    ? (filter_var(trim($d['dns1']),    FILTER_VALIDATE_IP) ?: '') : ($ip['dns1']    ?? '');
+            $ip['dns2']      = isset($d['dns2'])    ? (filter_var(trim($d['dns2']),    FILTER_VALIDATE_IP) ?: '') : ($ip['dns2']    ?? '');
             $ip['tags']      = array_filter(array_map('trim', explode(',', strip_tags($d['tags'] ?? implode(',', $ip['tags'] ?? [])))));
             $ip['notes']     = htmlspecialchars(strip_tags($d['notes'] ?? $ip['notes'] ?? ''), ENT_QUOTES);
             $found = true;
@@ -232,10 +233,12 @@ switch ($action) {
     case 'bulk_delete': {
         if ($method !== 'POST') { http_response_code(405); break; }
         $raw = $_POST['ids'] ?? '';
-        $ids = is_array($raw) ? array_map('intval', $raw) : array_map('intval', explode(',', $raw));
-        $ips = array_filter(getIPs(), fn($i) => !in_array($i['id'], $ids));
+        $ids    = is_array($raw) ? array_map('intval', $raw) : array_map('intval', explode(',', $raw));
+        $allIPs = getIPs();
+        $before = count($allIPs);
+        $ips    = array_filter($allIPs, fn($i) => !in_array($i['id'], $ids));
         saveIPs($ips);
-        $out = ['success' => true, 'deleted' => count($ids)];
+        $out = ['success' => true, 'deleted' => $before - count($ips)];
         break;
     }
 

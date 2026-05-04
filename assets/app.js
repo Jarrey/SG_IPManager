@@ -221,12 +221,29 @@ const App = (() => {
   // ── Confirm dialog ────────────────────────────────────────────────────────
   function confirm(title, msg) {
     return new Promise(resolve => {
+      const modal = document.getElementById('modal-confirm');
+      const okBtn = document.getElementById('btn-confirm-ok');
       document.getElementById('confirm-title').textContent = title;
       document.getElementById('confirm-msg').textContent   = msg;
+      // Ensure button is in default danger state for confirmations
+      okBtn.textContent = '确 认';
+      okBtn.className   = 'btn btn-danger';
       openModal('modal-confirm');
-      const btn = document.getElementById('btn-confirm-ok');
-      const handler = () => { closeModal('modal-confirm'); btn.removeEventListener('click', handler); resolve(true); };
-      btn.addEventListener('click', handler);
+      function cleanup(result) {
+        okBtn.removeEventListener('click', okHandler);
+        modal.removeEventListener('click', cancelHandler);
+        document.removeEventListener('keydown', escHandler);
+        closeModal('modal-confirm');
+        resolve(result);
+      }
+      function okHandler()      { cleanup(true); }
+      function cancelHandler(e) {
+        if (e.target === modal || e.target.closest('[data-close="modal-confirm"]')) cleanup(false);
+      }
+      function escHandler(e)    { if (e.key === 'Escape') cleanup(false); }
+      okBtn.addEventListener('click', okHandler);
+      modal.addEventListener('click', cancelHandler);
+      document.addEventListener('keydown', escHandler);
     });
   }
 
@@ -295,6 +312,7 @@ const App = (() => {
         state.vendorCache = { ...state.vendorCache, ...ipsResp.vendor_cache };
       }
       renderDeviceCategories(ipsResp.data);
+      buildRecentChanges(ipsResp.data);
     }
 
     if (subnetResp?.success) {
@@ -407,7 +425,18 @@ const App = (() => {
   }
 
   function updateInterfaces(r) {
-    // Populate interface dropdown from stats
+    const sel = document.getElementById('filter-iface');
+    if (!sel || !r?.data) return;
+    const cur = sel.value;
+    const ifaces = [...new Set(r.data.map(ip => ip.interface).filter(Boolean))].sort();
+    sel.innerHTML = '<option value="">全部接口</option>';
+    ifaces.forEach(iface => {
+      const opt = document.createElement('option');
+      opt.value = iface;
+      opt.textContent = iface;
+      if (iface === cur) opt.selected = true;
+      sel.appendChild(opt);
+    });
   }
 
   function renderTable() {
@@ -560,8 +589,17 @@ const App = (() => {
 
   async function pingSingleInRow(id, ip, btn) {
     const dot = document.getElementById(`sdot-${id}`);
-    if (dot) { dot.className = 'status-dot s-loading'; dot.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>'; }
-    const r = await api('ping_ip', { ip }, 'GET');
+    const loadingSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>';
+    const unknownSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';
+    if (dot) { dot.className = 'status-dot s-loading'; dot.innerHTML = loadingSvg; }
+    let r;
+    try {
+      r = await api('ping_ip', { ip }, 'GET');
+    } catch(e) {
+      if (dot) { dot.className = 'status-dot s-unknown'; dot.innerHTML = unknownSvg; }
+      toast(`${ip}: 检测请求失败`, 'error');
+      return;
+    }
     if (r?.success) {
       const cls   = r.online ? 's-online' : 's-offline';
       const label = r.online ? '在线' : '离线';
@@ -812,7 +850,18 @@ const App = (() => {
       if (state.pingCancel) break;
       summary.textContent = `正在检测… ${done + 1}/${total} ${entry.ip}`;
       current.textContent = '请稍候，检测结果将逐行输出';
-      const r = await api('ping_ip', { ip: entry.ip }, 'GET');
+      let r;
+      try {
+        r = await api('ping_ip', { ip: entry.ip }, 'GET');
+      } catch(e) {
+        done++;
+        doneTxt.textContent = done;
+        fill.style.width = Math.round((done / total) * 100) + '%';
+        const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+        log.insertAdjacentHTML('beforeend', `<div class="ping-log-item"><span class="ping-log-ts">${esc(ts)}</span><span class="ping-log-ip">${esc(entry.ip)}</span><span class="ping-log-status offline">请求失败</span></div>`);
+        log.scrollTop = log.scrollHeight;
+        continue;
+      }
       done++;
       doneTxt.textContent = done;
       fill.style.width = Math.round((done / total) * 100) + '%';
@@ -864,7 +913,6 @@ const App = (() => {
     }
 
     loadStats();
-    buildRecentChanges();
     if (state.currentPage === 'iplist') loadIPs();
     if (state.currentPage === 'subnet') loadSubnets();
   }
@@ -878,11 +926,15 @@ const App = (() => {
     if (current) current.textContent = '取消中，请等待当前项完成…';
   });
 
-  async function buildRecentChanges() {
-    const r = await api('get_ips', { sort: 'ip_addr' });
-    if (!r?.success) return;
+  async function buildRecentChanges(cachedIPs = null) {
+    let allIPs = cachedIPs;
+    if (!allIPs) {
+      const r = await api('get_ips', { sort: 'ip_addr' });
+      if (!r?.success) return;
+      allIPs = r.data;
+    }
     const container = document.getElementById('recent-changes');
-    const ips = r.data.filter(ip => ip.status).sort((a, b) => {
+    const ips = allIPs.filter(ip => ip.status).sort((a, b) => {
       const ta = a.last_check || '';
       const tb = b.last_check || '';
       return tb.localeCompare(ta);
@@ -1222,13 +1274,24 @@ const App = (() => {
       </div>
       <div class="form-group"><label>网关</label><input id="sn-gw" class="input-full" value="${esc(vals.gateway)}"></div>
     `;
+    const snModal = document.getElementById('modal-confirm');
+    const snInner = snModal.querySelector('.modal');
+    const snOkBtn = document.getElementById('btn-confirm-ok');
     document.getElementById('confirm-title').textContent = idx !== null ? '编辑网段' : '添加网段';
     document.getElementById('confirm-msg').innerHTML     = html;
-    document.getElementById('btn-confirm-ok').textContent = '保存';
-    document.getElementById('btn-confirm-ok').className   = 'btn btn-primary';
+    snOkBtn.textContent = '保存';
+    snOkBtn.className   = 'btn btn-primary';
+    snInner.classList.remove('modal-sm'); // wider for form fields
     openModal('modal-confirm');
-    const btn = document.getElementById('btn-confirm-ok');
-    const handler = () => {
+    function snCleanup() {
+      snOkBtn.removeEventListener('click', snOkHandler);
+      snModal.removeEventListener('click', snCancelHandler);
+      document.removeEventListener('keydown', snEscHandler);
+      snInner.classList.add('modal-sm');
+      snOkBtn.textContent = '确 认';
+      snOkBtn.className   = 'btn btn-danger';
+    }
+    function snOkHandler() {
       const newSn = {
         id:          sn?.id ?? Date.now(),
         name:        document.getElementById('sn-name').value.trim(),
@@ -1241,13 +1304,17 @@ const App = (() => {
       if (idx !== null) state.settings.subnets[idx] = newSn;
       else state.settings.subnets = [...(state.settings.subnets || []), newSn];
       closeModal('modal-confirm');
-      document.getElementById('btn-confirm-ok').textContent = '确 认';
-      document.getElementById('btn-confirm-ok').className   = 'btn btn-danger';
-      btn.removeEventListener('click', handler);
+      snCleanup();
       renderSubnetList(state.settings.subnets);
       saveSubnets();
-    };
-    btn.addEventListener('click', handler);
+    }
+    function snCancelHandler(e) {
+      if (e.target === snModal || e.target.closest('[data-close="modal-confirm"]')) snCleanup();
+    }
+    function snEscHandler(e) { if (e.key === 'Escape') snCleanup(); }
+    snOkBtn.addEventListener('click', snOkHandler);
+    snModal.addEventListener('click', snCancelHandler);
+    document.addEventListener('keydown', snEscHandler);
   }
 
   // Account settings (username + password, combined)

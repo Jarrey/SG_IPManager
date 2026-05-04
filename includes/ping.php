@@ -2,31 +2,6 @@
 require_once __DIR__ . '/config.php';
 
 /**
- * Check if an IP is in a local/private network range that may not respond to ping
- * (e.g., Docker host, gateway, or network infrastructure)
- * Returns true if IP should be treated as local infrastructure
- */
-function isLocalInfrastructure(string $ip): bool {
-    // Docker internal gateway (default bridge network)
-    $dockerGateway = '172.17.0.1';
-    // Common Docker host aliases
-    if ($ip === $dockerGateway || $ip === '127.0.0.1' || $ip === 'localhost') {
-        return true;
-    }
-    
-    // Check if in private/local ranges
-    $ip_long = ip2long($ip);
-    // 10.0.0.0/8
-    if ($ip_long >= ip2long('10.0.0.0') && $ip_long <= ip2long('10.255.255.255')) return true;
-    // 172.16.0.0/12
-    if ($ip_long >= ip2long('172.16.0.0') && $ip_long <= ip2long('172.31.255.255')) return true;
-    // 192.168.0.0/16
-    if ($ip_long >= ip2long('192.168.0.0') && $ip_long <= ip2long('192.168.255.255')) return true;
-    
-    return false;
-}
-
-/**
  * Check if IP is within Docker host ranges (configured by user)
  * Format: "192.168.2.6-192.168.2.10,10.0.0.1" or single IPs
  */
