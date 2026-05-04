@@ -21,9 +21,10 @@ const App = (() => {
     filterEnabled:'',
     filterIface:  '',
     selected:     new Set(),
-    pingQueue:    [],
-    pingRunning:  false,
-    pingCancel:   false,
+    pingQueue:           [],
+    pingRunning:         false,
+    pingCancel:          false,
+    pingRestartPending:  false,
     currentPage:  'overview',
     settings:     {},
     settingsLoaded: false,
@@ -816,13 +817,18 @@ const App = (() => {
   document.getElementById('btn-check-all').addEventListener('click', startPingAll);
 
   async function startPingAll() {
-    if (state.pingRunning) return;
+    if (state.pingRunning) {
+      // Cancellation in progress — mark for restart once the current run finishes
+      if (state.pingCancel) state.pingRestartPending = true;
+      return;
+    }
+    state.pingRestartPending = false;
+    state.pingCancel         = false; // ensure clean state from any prior cancel
     const r = await api('get_ips', {});
     if (!r?.success || r.data.length === 0) { toast('没有 IP 可检测', 'info'); return; }
 
     state.pingQueue   = r.data.map(ip => ({ id: ip.id, ip: ip.ip_addr }));
     state.pingRunning = true;
-    state.pingCancel  = false;
     let done = 0;
     const total = state.pingQueue.length;
 
@@ -894,6 +900,7 @@ const App = (() => {
     state.pingRunning = false;
 
     if (state.pingCancel) {
+      state.pingCancel = false; // reset so next run starts clean
       // Reset UI to initial state so re-running works cleanly
       wrap.classList.add('hidden');
       fill.style.width = '0%';
@@ -902,6 +909,12 @@ const App = (() => {
       summary.textContent = `正在检测… 0 / 0`;
       if (cancelBtn) cancelBtn.disabled = false;
       toast(`检测已取消（已完成 ${done}/${total}）`, 'info');
+      // User clicked 检测 while cancel was in progress — restart now
+      if (state.pingRestartPending) {
+        state.pingRestartPending = false;
+        startPingAll();
+        return;
+      }
     } else {
       if (cancelBtn) cancelBtn.disabled = true;
       summary.textContent = `检测完成 ${done} / ${total}`;
