@@ -530,6 +530,45 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
   </div>
 </div>
 
+<!-- IP Detail Modal -->
+<div id="modal-ip-detail" class="modal-overlay" role="dialog" aria-modal="true">
+  <div class="modal modal-detail">
+    <div class="modal-header">
+      <div class="detail-header-main">
+        <div id="detail-device-icon" class="detail-device-icon"></div>
+        <div class="detail-header-text">
+          <div id="detail-ip-title"></div>
+          <div id="detail-status-badge" class="detail-status-badge"></div>
+        </div>
+      </div>
+      <button class="modal-close icon-btn" data-close="modal-ip-detail">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="ip-detail-grid">
+        <div class="ip-detail-row"><span class="ip-detail-label">主机名</span><span id="detail-hostname" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">备 注</span><span id="detail-comment" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">MAC 地址</span><span id="detail-mac" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">厂 商</span><span id="detail-vendor" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">接 口</span><span id="detail-iface" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">启 用</span><span id="detail-enabled" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">网 关</span><span id="detail-gateway" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">DNS 1</span><span id="detail-dns1" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">DNS 2</span><span id="detail-dns2" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row"><span class="ip-detail-label">标 签</span><span id="detail-tags" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row full"><span class="ip-detail-label">上次检测</span><span id="detail-lastcheck" class="ip-detail-value"></span></div>
+        <div class="ip-detail-row full"><span class="ip-detail-label">备忘录</span><span id="detail-notes" class="ip-detail-value"></span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close="modal-ip-detail">关 闭</button>
+      <button id="btn-detail-ping" class="btn btn-outline">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:.9rem;height:.9rem;vertical-align:middle;margin-right:.25rem"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>检 测
+      </button>
+      <button id="btn-detail-edit" class="btn btn-primary">编 辑</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast-container"></div>
 

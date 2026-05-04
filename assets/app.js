@@ -318,6 +318,9 @@ const App = (() => {
 
     if (subnetResp?.success) {
       renderSubnetSummary(subnetResp.data);
+      document.querySelectorAll('.overview-subnet-cell[data-ip-addr]').forEach(el => {
+        el.addEventListener('click', () => openIPDetail(el.dataset.ipAddr));
+      });
     }
   }
 
@@ -367,7 +370,8 @@ const App = (() => {
         const ipStr = `${base}.${i}`;
         const u = usedByIP[ipStr];
         const cls = u ? (u.enabled === 'no' ? 'used-disabled' : `used-${u.status}`) : 'free';
-        cells.push(`<span class="overview-subnet-cell ${cls}" title="${esc(ipStr)}"></span>`);
+        const dataIp = u ? ` data-ip-addr="${esc(ipStr)}"` : '';
+        cells.push(`<span class="overview-subnet-cell ${cls}"${dataIp} title="${esc(ipStr)}"></span>`);
       }
       return `<div class="subnet-summary-row">
         <div class="subnet-summary-title"><span>${esc(s.name)}</span><span>${esc(s.network)}/${esc(s.prefix)}</span></div>
@@ -488,6 +492,10 @@ const App = (() => {
 
     // Async MAC vendor lookup for visible rows
     scheduleVendorLookup();
+    // IP address click → detail view
+    tbody.querySelectorAll('.ip-addr-link').forEach(el => {
+      el.addEventListener('click', e => { e.stopPropagation(); openIPDetail(el.dataset.ip); });
+    });
   }
 
   function renderRow(ip) {
@@ -517,7 +525,7 @@ const App = (() => {
   </td>
   <td class="col-ip">
     <div class="ip-cell">
-      <span>${esc(ip.ip_addr)}</span>
+      <span class="ip-addr-link" data-ip="${esc(ip.ip_addr)}">${esc(ip.ip_addr)}</span>
       <button class="copy-btn" data-copy="${esc(ip.ip_addr)}" title="复制 IP">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
       </button>
@@ -612,6 +620,103 @@ const App = (() => {
       toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}`, r.online ? 'success' : 'error', 4000);
     }
     loadStats();
+  }
+
+  // ── IP Detail (read-only) ─────────────────────────────────────────────────
+  async function openIPDetail(ipAddr) {
+    const r = await api('get_ips', { q: ipAddr });
+    if (!r?.success) { toast('加载详情失败', 'error'); return; }
+    const ip = r.data.find(x => x.ip_addr === ipAddr);
+    if (!ip) { toast('未找到该 IP 记录', 'error'); return; }
+
+    // Device icon
+    const oui    = (ip.mac || '').replace(/[^a-fA-F0-9]/g, '').toUpperCase().slice(0, 6);
+    const vendor = oui ? (state.vendorCache[oui] ?? null) : null;
+    document.getElementById('detail-device-icon').innerHTML = buildDeviceIcon(vendor || '', ip.comment || ip.cl_name || '');
+    document.getElementById('detail-ip-title').textContent  = ip.ip_addr;
+
+    // Status badge
+    const statusEl  = document.getElementById('detail-status-badge');
+    const statusMap = { online: ['s-online', '在线'], offline: ['s-offline', '离线'] };
+    const [cls, label] = statusMap[ip.status] || ['s-unknown', '未检测'];
+    statusEl.className   = `detail-status-badge ${cls}`;
+    statusEl.textContent = label;
+    if (ip.last_check) {
+      const t = ip.ping_time != null ? `  ${ip.ping_time}ms` : '';
+      const m = ip.ping_method ? `  ·  ${ip.ping_method}` : '';
+      statusEl.textContent += `   ${ip.last_check.slice(11, 16)}${t}${m}`;
+    }
+
+    const setV = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || ''; };
+    setV('detail-hostname', ip.cl_name);
+    setV('detail-comment',  ip.comment);
+    setV('detail-mac',      ip.mac);
+    setV('detail-iface',    ip.interface);
+    setV('detail-gateway',  ip.gateway);
+    setV('detail-dns1',     ip.dns1);
+    setV('detail-dns2',     ip.dns2);
+    document.getElementById('detail-tags').textContent    = (ip.tags || []).filter(Boolean).join(', ');
+    setV('detail-notes',   ip.notes);
+    document.getElementById('detail-enabled').textContent = ip.enabled === 'yes' ? '已启用' : '已禁用';
+    if (ip.last_check) {
+      const t = ip.ping_time != null ? ` (${ip.ping_time}ms)` : '';
+      const m = ip.ping_method ? `  ·  ${ip.ping_method}` : '';
+      document.getElementById('detail-lastcheck').textContent = ip.last_check + t + m;
+    } else {
+      document.getElementById('detail-lastcheck').textContent = '';
+    }
+
+    // Vendor lookup
+    const vendorEl = document.getElementById('detail-vendor');
+    if (vendor !== null) {
+      vendorEl.innerHTML = vendor
+        ? buildDeviceIcon(vendor, ip.comment || '') + ' ' + esc(vendor)
+        : '';
+    } else if (oui && ip.mac) {
+      vendorEl.textContent = '查询中…';
+      api('lookup_mac', { mac: ip.mac }).then(vr => {
+        const v = (vr?.success && vr.vendor) ? vr.vendor : '';
+        state.vendorCache[oui] = v;
+        if (document.getElementById('modal-ip-detail')?.classList.contains('open')) {
+          vendorEl.innerHTML = v ? buildDeviceIcon(v, ip.comment || '') + ' ' + esc(v) : '';
+        }
+      });
+    } else {
+      vendorEl.textContent = '';
+    }
+
+    // Action buttons — clone to remove stale listeners
+    const pingBtn = document.getElementById('btn-detail-ping');
+    const editBtn = document.getElementById('btn-detail-edit');
+    const newPing = pingBtn.cloneNode(true);
+    const newEdit = editBtn.cloneNode(true);
+    pingBtn.replaceWith(newPing);
+    editBtn.replaceWith(newEdit);
+
+    newPing.addEventListener('click', async () => {
+      newPing.disabled = true;
+      const pr = await api('ping_ip', { ip: ip.ip_addr }, 'GET');
+      newPing.disabled = false;
+      if (pr?.success) {
+        const [sc, sl] = statusMap[pr.online ? 'online' : 'offline'] || ['s-unknown', '未检测'];
+        statusEl.className   = `detail-status-badge ${sc}`;
+        const t = pr.time != null ? `  ${pr.time}ms` : '';
+        const m = pr.method ? `  ·  ${pr.method}` : '';
+        statusEl.textContent = sl + '   ' + new Date().toLocaleTimeString('zh-CN', { hour12: false }).slice(0, 5) + t + m;
+        toast(`${ip.ip_addr}: ${sl}${t ? ' (' + pr.time + 'ms)' : ''}${m}`, pr.online ? 'success' : 'error', 3000);
+        loadStats();
+        if (state.currentPage === 'iplist') loadIPs();
+      }
+    });
+
+    newEdit.addEventListener('click', () => {
+      // Ensure ip is in state.ips so openIPForm can look it up
+      if (!state.ips.find(x => x.id === ip.id)) state.ips.push(ip);
+      closeModal('modal-ip-detail');
+      openIPForm(ip.id);
+    });
+
+    openModal('modal-ip-detail');
   }
 
   // Sort
@@ -974,6 +1079,10 @@ const App = (() => {
         setTimeout(() => { document.getElementById('ip-form-ip').value = ip; }, 50);
       });
     });
+    // Used block click → detail view
+    panels.querySelectorAll('.ip-cell-box.used-block').forEach(el => {
+      el.addEventListener('click', () => openIPDetail(el.dataset.ipAddr));
+    });
   }
 
   function buildSubnetPanel(sn) {
@@ -991,7 +1100,7 @@ const App = (() => {
       if (u) {
         const cls   = u.enabled === 'no' ? 'used-disabled' : `used-${u.status}`;
         const label = u.comment || u.cl_name || '';
-        cells.push(`<div class="ip-cell-box ${cls}" title="${esc(ipStr)} ${esc(label)}">${i}<div class="ip-tooltip">${esc(ipStr)}<br>${esc(label) || '—'}</div></div>`);
+        cells.push(`<div class="ip-cell-box ${cls} used-block" data-ip-addr="${esc(ipStr)}" title="${esc(ipStr)} ${esc(label)}">${i}<div class="ip-tooltip">${esc(ipStr)}<br>${esc(label) || '—'}</div></div>`);
       } else {
         cells.push(`<div class="ip-cell-box free" data-free-ip="${esc(ipStr)}" title="空闲: ${esc(ipStr)}" style="cursor:pointer">${i}<div class="ip-tooltip">${esc(ipStr)}<br>空闲（点击分配）</div></div>`);
       }
