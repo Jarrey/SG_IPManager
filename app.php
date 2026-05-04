@@ -179,10 +179,12 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       <!-- Ping progress bar (hidden by default) -->
       <div id="ping-progress-wrap" class="ping-progress-wrap hidden">
         <div class="ping-progress-label">
-          <span>正在检测… <span id="ping-done">0</span> / <span id="ping-total">0</span></span>
+          <span id="ping-progress-summary">正在检测… <span id="ping-done">0</span> / <span id="ping-total">0</span></span>
           <button id="btn-cancel-ping" class="btn btn-xs btn-danger">取消</button>
         </div>
         <div class="ping-progress-bar"><div id="ping-progress-fill"></div></div>
+        <div id="ping-progress-current" class="ping-progress-current">准备开始检测</div>
+        <div id="ping-progress-log" class="ping-progress-log"></div>
       </div>
 
       <!-- Recent checks -->

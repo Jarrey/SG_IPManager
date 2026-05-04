@@ -709,13 +709,17 @@ const App = (() => {
     let done = 0;
     const total = state.pingQueue.length;
 
-    const wrap   = document.getElementById('ping-progress-wrap');
-    const fill   = document.getElementById('ping-progress-fill');
-    const doneTxt= document.getElementById('ping-done');
-    const totTxt = document.getElementById('ping-total');
+    const wrap     = document.getElementById('ping-progress-wrap');
+    const fill     = document.getElementById('ping-progress-fill');
+    const doneTxt  = document.getElementById('ping-done');
+    const totTxt   = document.getElementById('ping-total');
+    const current  = document.getElementById('ping-progress-current');
+    const log      = document.getElementById('ping-progress-log');
     wrap.classList.remove('hidden');
     totTxt.textContent = total;
     doneTxt.textContent = 0;
+    current.textContent = '准备开始检测';
+    log.innerHTML = '';
     fill.style.width = '0%';
 
     // switch to overview
@@ -723,16 +727,42 @@ const App = (() => {
 
     for (const entry of state.pingQueue) {
       if (state.pingCancel) break;
-      await api('ping_ip', { ip: entry.ip }, 'GET');
+      current.textContent = `正在检测 ${done + 1}/${total}: ${entry.ip}`;
+      const r = await api('ping_ip', { ip: entry.ip }, 'GET');
       done++;
       doneTxt.textContent = done;
       fill.style.width = Math.round((done / total) * 100) + '%';
+      const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      if (r?.success) {
+        const methodLabel = r.method ? ` · ${r.method}` : '';
+        const statusText = r.online ? '在线' : '离线';
+        current.textContent = `已检测 ${entry.ip}：${statusText}${methodLabel}`;
+        const line = `<div class="ping-log-item">
+          <span class="ping-log-ts">${esc(timestamp)}</span>
+          <span class="ping-log-ip">${esc(entry.ip)}</span>
+          <span class="ping-log-status ${r.online ? 'online' : 'offline'}">${statusText}</span>
+          <span class="ping-log-method">${esc(r.method || '')}</span>
+          <span class="ping-log-time">${r.time != null ? esc(r.time + 'ms') : ''}</span>
+        </div>`;
+        log.insertAdjacentHTML('beforeend', line);
+        log.scrollTop = log.scrollHeight;
+      } else {
+        current.textContent = `检测失败 ${entry.ip}`;
+        const errorLine = `<div class="ping-log-item">
+          <span class="ping-log-ts">${esc(timestamp)}</span>
+          <span class="ping-log-ip">${esc(entry.ip)}</span>
+          <span class="ping-log-status offline">失败</span>
+          <span class="ping-log-method">${esc(r?.error || '未知错误')}</span>
+        </div>`;
+        log.insertAdjacentHTML('beforeend', errorLine);
+        log.scrollTop = log.scrollHeight;
+      }
     }
 
     state.pingRunning = false;
-    wrap.classList.add('hidden');
 
-    const msg = state.pingCancel ? `检测中断（${done}/${total}）` : `检测完成 ${total} 个 IP`;
+    const msg = state.pingCancel ? `检测中断（${done}/${total}）` : `检测完成 ${done} 个 IP`;
+    current.textContent = state.pingCancel ? '检测已中断' : '检测完成，查看下面结果';
     toast(msg, 'success');
 
     loadStats();
