@@ -932,7 +932,7 @@ const App = (() => {
     const r = await api('get_ips', {});
     if (!r?.success || r.data.length === 0) { toast('没有 IP 可检测', 'info'); return; }
 
-    state.pingQueue   = r.data.map(ip => ({ id: ip.id, ip: ip.ip_addr }));
+    state.pingQueue   = r.data.map(ip => ({ id: ip.id, ip: ip.ip_addr, label: ip.comment || ip.cl_name || '' }));
     state.pingRunning = true;
     let done = 0;
     const total = state.pingQueue.length;
@@ -960,7 +960,7 @@ const App = (() => {
 
     for (const entry of state.pingQueue) {
       if (state.pingCancel) break;
-      current.textContent = `正在检测 ${entry.ip}…`;
+      current.textContent = `正在检测 ${entry.ip}${entry.label ? ' · ' + entry.label : ''}…`;
       let r;
       try {
         r = await api('ping_ip', { ip: entry.ip }, 'GET');
@@ -969,7 +969,7 @@ const App = (() => {
         doneTxt.textContent = done;
         fill.style.width = Math.round((done / total) * 100) + '%';
         const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-        log.insertAdjacentHTML('beforeend', `<div class="ping-log-item"><span class="ping-log-ts">${esc(ts)}</span><span class="ping-log-ip">${esc(entry.ip)}</span><span class="ping-log-status offline">请求失败</span></div>`);
+        log.insertAdjacentHTML('beforeend', `<div class="ping-log-item"><span class="ping-log-ts">${esc(ts)}</span><span class="ping-log-ip">${esc(entry.ip)}</span>${entry.label ? `<span class="ping-log-name">${esc(entry.label)}</span>` : ''}<span class="ping-log-status offline">请求失败</span></div>`);
         log.scrollTop = log.scrollHeight;
         continue;
       }
@@ -984,6 +984,7 @@ const App = (() => {
         const line = `<div class="ping-log-item">
           <span class="ping-log-ts">${esc(timestamp)}</span>
           <span class="ping-log-ip">${esc(entry.ip)}</span>
+          ${entry.label ? `<span class="ping-log-name">${esc(entry.label)}</span>` : ''}
           <span class="ping-log-status ${r.online ? 'online' : 'offline'}">${statusText}</span>
           <span class="ping-log-method">${esc(r.method || '')}</span>
           <span class="ping-log-time">${r.time != null ? esc(r.time + 'ms') : ''}</span>
@@ -995,6 +996,7 @@ const App = (() => {
         const errorLine = `<div class="ping-log-item">
           <span class="ping-log-ts">${esc(timestamp)}</span>
           <span class="ping-log-ip">${esc(entry.ip)}</span>
+          ${entry.label ? `<span class="ping-log-name">${esc(entry.label)}</span>` : ''}
           <span class="ping-log-status offline">失败</span>
           <span class="ping-log-method">${esc(r?.error || '未知错误')}</span>
         </div>`;

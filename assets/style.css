@@ -445,6 +445,7 @@ svg { display: block; flex-shrink: 0; }
 .ping-log-status.online { color: var(--green); }
 .ping-log-status.offline { color: var(--red); }
 .ping-log-method { color: var(--fg3); }
+.ping-log-name   { color: var(--fg2); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ping-log-time { color: var(--fg4); margin-left: auto; }
 
 /* ── Recent list ─────────────────────────────────────────────────────────── */
