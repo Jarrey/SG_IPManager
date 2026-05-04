@@ -846,11 +846,22 @@ const App = (() => {
     }
 
     state.pingRunning = false;
-    if (cancelBtn) cancelBtn.disabled = true;
 
-    const msg = state.pingCancel ? `检测中断（${done}/${total}）` : `检测完成 ${done} 个 IP`;
-    current.textContent = state.pingCancel ? '检测已中断' : '检测完成，查看下面结果';
-    toast(msg, 'success');
+    if (state.pingCancel) {
+      // Reset UI to initial state so re-running works cleanly
+      wrap.classList.add('hidden');
+      fill.style.width = '0%';
+      log.innerHTML = '';
+      current.textContent = '准备开始检测';
+      summary.textContent = `正在检测… 0 / 0`;
+      if (cancelBtn) cancelBtn.disabled = false;
+      toast(`检测已取消（已完成 ${done}/${total}）`, 'info');
+    } else {
+      if (cancelBtn) cancelBtn.disabled = true;
+      summary.textContent = `检测完成 ${done} / ${total}`;
+      current.textContent = '检测完成，查看下面结果';
+      toast(`检测完成 ${done} 个 IP`, 'success');
+    }
 
     loadStats();
     buildRecentChanges();
@@ -859,12 +870,12 @@ const App = (() => {
   }
 
   document.getElementById('btn-cancel-ping')?.addEventListener('click', () => {
-    const cancelBtn = document.getElementById('btn-cancel-ping');
+    if (!state.pingRunning) return;
     state.pingCancel = true;
+    const cancelBtn = document.getElementById('btn-cancel-ping');
     if (cancelBtn) cancelBtn.disabled = true;
     const current = document.getElementById('ping-progress-current');
-    if (current) current.textContent = '取消中，请稍候...';
-    toast('正在取消检测…', 'info');
+    if (current) current.textContent = '取消中，请等待当前项完成…';
   });
 
   async function buildRecentChanges() {
