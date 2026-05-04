@@ -1140,6 +1140,20 @@ const App = (() => {
     else toast('清除失败', 'error');
   });
 
+  async function saveSubnets() {
+    const subnets = state.settings.subnets || [];
+    const payload = { subnets: JSON.stringify(subnets) };
+    if (subnets.length === 0) payload.clear_subnets = '1';
+    const r = await api('save_settings', payload, 'POST');
+    if (r?.success) {
+      state.settings = r.settings;
+      state.settingsLoaded = true;
+      toast('网段已保存', 'success');
+    } else {
+      toast(r?.error || '保存失败', 'error');
+    }
+  }
+
   function renderSubnetList(subnets) {
     const el = document.getElementById('subnet-list');
     if (!el) return;
@@ -1165,6 +1179,7 @@ const App = (() => {
         if (!ok) return;
         state.settings.subnets.splice(i, 1);
         renderSubnetList(state.settings.subnets);
+        await saveSubnets();
       });
     });
     el.querySelectorAll('[data-sn-edit]').forEach(btn => {
@@ -1219,6 +1234,7 @@ const App = (() => {
       document.getElementById('btn-confirm-ok').className   = 'btn btn-danger';
       btn.removeEventListener('click', handler);
       renderSubnetList(state.settings.subnets);
+      saveSubnets();
     };
     btn.addEventListener('click', handler);
   }
