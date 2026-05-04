@@ -569,8 +569,8 @@ const App = (() => {
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       if (dot) { dot.className = `status-dot ${cls}`; dot.title = `${label} ${r.time ?? ''}ms`; dot.innerHTML = svg; }
       const methodLabel = r.method && r.method !== 'ping' ? ` · ${r.method}` : '';
-      const debugLabel  = r.debug ? ` · ${r.debug}` : '';
-      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}${debugLabel}`, r.online ? 'success' : 'error', 3000);
+      const debugLabel  = r.debug ? ` · DEBUG: ${r.debug}` : '';
+      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}${debugLabel}`, r.online ? 'success' : 'error', 4000);
     }
     loadStats();
   }
@@ -788,14 +788,16 @@ const App = (() => {
     let done = 0;
     const total = state.pingQueue.length;
 
-    const wrap     = document.getElementById('ping-progress-wrap');
-    const fill     = document.getElementById('ping-progress-fill');
-    const doneTxt  = document.getElementById('ping-done');
-    const totTxt   = document.getElementById('ping-total');
-    const summary  = document.getElementById('ping-progress-summary');
-    const current  = document.getElementById('ping-progress-current');
-    const log      = document.getElementById('ping-progress-log');
+    const wrap      = document.getElementById('ping-progress-wrap');
+    const fill      = document.getElementById('ping-progress-fill');
+    const doneTxt   = document.getElementById('ping-done');
+    const totTxt    = document.getElementById('ping-total');
+    const summary   = document.getElementById('ping-progress-summary');
+    const current   = document.getElementById('ping-progress-current');
+    const log       = document.getElementById('ping-progress-log');
+    const cancelBtn = document.getElementById('btn-cancel-ping');
     wrap.classList.remove('hidden');
+    if (cancelBtn) cancelBtn.disabled = false;
     totTxt.textContent = total;
     doneTxt.textContent = 0;
     current.textContent = '准备开始检测';
@@ -824,7 +826,7 @@ const App = (() => {
           <span class="ping-log-status ${r.online ? 'online' : 'offline'}">${statusText}</span>
           <span class="ping-log-method">${esc(r.method || '')}</span>
           <span class="ping-log-time">${r.time != null ? esc(r.time + 'ms') : ''}</span>
-          ${r.debug ? `<span class="ping-log-debug">${esc(r.debug)}</span>` : ''}
+          ${r.debug ? `<span class="ping-log-debug">DEBUG: ${esc(r.debug)}</span>` : ''}
         </div>`;
         log.insertAdjacentHTML('beforeend', line);
         log.scrollTop = log.scrollHeight;
@@ -835,7 +837,7 @@ const App = (() => {
           <span class="ping-log-ip">${esc(entry.ip)}</span>
           <span class="ping-log-status offline">失败</span>
           <span class="ping-log-method">${esc(r?.error || '未知错误')}</span>
-          ${r?.debug ? `<span class="ping-log-debug">${esc(r.debug)}</span>` : ''}
+          ${r?.debug ? `<span class="ping-log-debug">DEBUG: ${esc(r.debug)}</span>` : ''}
         </div>`;
         log.insertAdjacentHTML('beforeend', errorLine);
         log.scrollTop = log.scrollHeight;
@@ -843,6 +845,7 @@ const App = (() => {
     }
 
     state.pingRunning = false;
+    if (cancelBtn) cancelBtn.disabled = true;
 
     const msg = state.pingCancel ? `检测中断（${done}/${total}）` : `检测完成 ${done} 个 IP`;
     current.textContent = state.pingCancel ? '检测已中断' : '检测完成，查看下面结果';
@@ -855,7 +858,11 @@ const App = (() => {
   }
 
   document.getElementById('btn-cancel-ping')?.addEventListener('click', () => {
+    const cancelBtn = document.getElementById('btn-cancel-ping');
     state.pingCancel = true;
+    if (cancelBtn) cancelBtn.disabled = true;
+    const current = document.getElementById('ping-progress-current');
+    if (current) current.textContent = '取消中，请稍候...';
     toast('正在取消检测…', 'info');
   });
 
