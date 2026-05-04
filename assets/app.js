@@ -834,12 +834,14 @@ const App = (() => {
 
     const wrap      = document.getElementById('ping-progress-wrap');
     const fill      = document.getElementById('ping-progress-fill');
-    const doneTxt   = document.getElementById('ping-done');
-    const totTxt    = document.getElementById('ping-total');
     const summary   = document.getElementById('ping-progress-summary');
     const current   = document.getElementById('ping-progress-current');
     const log       = document.getElementById('ping-progress-log');
     const cancelBtn = document.getElementById('btn-cancel-ping');
+    // Restore the inner span structure that textContent calls in previous runs may have destroyed
+    summary.innerHTML = '正在检测… <span id="ping-done">0</span> / <span id="ping-total">0</span>';
+    const doneTxt   = document.getElementById('ping-done');
+    const totTxt    = document.getElementById('ping-total');
     wrap.classList.remove('hidden');
     if (cancelBtn) cancelBtn.disabled = false;
     totTxt.textContent = total;
@@ -853,8 +855,7 @@ const App = (() => {
 
     for (const entry of state.pingQueue) {
       if (state.pingCancel) break;
-      summary.textContent = `正在检测… ${done + 1}/${total} ${entry.ip}`;
-      current.textContent = '请稍候，检测结果将逐行输出';
+      current.textContent = `正在检测 ${entry.ip}…`;
       let r;
       try {
         r = await api('ping_ip', { ip: entry.ip }, 'GET');
@@ -906,7 +907,6 @@ const App = (() => {
       fill.style.width = '0%';
       log.innerHTML = '';
       current.textContent = '准备开始检测';
-      summary.textContent = `正在检测… 0 / 0`;
       if (cancelBtn) cancelBtn.disabled = false;
       toast(`检测已取消（已完成 ${done}/${total}）`, 'info');
       // User clicked 检测 while cancel was in progress — restart now
