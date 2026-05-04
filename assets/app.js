@@ -668,21 +668,28 @@ const App = (() => {
 
     // Vendor lookup
     const vendorEl = document.getElementById('detail-vendor');
+    const comment  = ip.comment || '';
+    function _renderVendor(v) {
+      const typeLabel = (DEVICE_ICONS[detectDeviceType(v, comment)] || DEVICE_ICONS.device).title;
+      if (v) {
+        vendorEl.innerHTML = `${buildDeviceIcon(v, comment)} <span class="vendor-hint-name">${esc(v)}</span> <span style="color:var(--fg4);font-size:.75rem">(${typeLabel})</span>`;
+      } else {
+        vendorEl.innerHTML = `${buildDeviceIcon('', comment)} <span style="color:var(--fg4)">${typeLabel}（未找到厂商）</span>`;
+      }
+    }
     if (vendor !== null) {
-      vendorEl.innerHTML = vendor
-        ? buildDeviceIcon(vendor, ip.comment || '') + ' ' + esc(vendor)
-        : '';
+      _renderVendor(vendor);
     } else if (oui && ip.mac) {
-      vendorEl.textContent = '查询中…';
+      vendorEl.innerHTML = '<span class="vendor-hint-loading">查询中…</span>';
       api('lookup_mac', { mac: ip.mac }).then(vr => {
         const v = (vr?.success && vr.vendor) ? vr.vendor : '';
         state.vendorCache[oui] = v;
         if (document.getElementById('modal-ip-detail')?.classList.contains('open')) {
-          vendorEl.innerHTML = v ? buildDeviceIcon(v, ip.comment || '') + ' ' + esc(v) : '';
+          _renderVendor(v);
         }
       });
     } else {
-      vendorEl.textContent = '';
+      _renderVendor('');
     }
 
     // Action buttons — clone to remove stale listeners

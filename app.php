@@ -556,7 +556,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       </div>
       <div class="form-group">
         <label>厂 商</label>
-        <div id="detail-vendor" class="detail-value"></div>
+        <div id="detail-vendor" class="mac-vendor-hint"></div>
       </div>
       <div class="form-row">
         <div class="form-group">
