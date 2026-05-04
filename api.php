@@ -267,6 +267,7 @@ switch ($action) {
         $saved    = updatePingResult($addr, $result);
         $out      = ['success' => true, 'ip' => $addr, 'online' => $result['online'],
                      'time' => $result['time'], 'method' => $result['method'] ?? null,
+                     'debug' => $result['debug'] ?? null,
                      'checked_at' => $saved['last_check']];
         break;
     }
@@ -284,7 +285,7 @@ switch ($action) {
             if (!$addr) continue;
             $r         = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges, $hostArpPath);
             $saved     = updatePingResult($addr, $r);
-            $results[$addr] = ['online' => $r['online'], 'time' => $r['time'], 'checked_at' => $saved['last_check']];
+            $results[$addr] = ['online' => $r['online'], 'time' => $r['time'], 'method' => $r['method'] ?? null, 'debug' => $r['debug'] ?? null, 'checked_at' => $saved['last_check']];
         }
         $out = ['success' => true, 'results' => $results, 'total' => count($results)];
         break;

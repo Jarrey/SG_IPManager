@@ -220,6 +220,81 @@ svg { display: block; flex-shrink: 0; }
   gap: .85rem;
   margin-bottom: 1.5rem;
 }
+.overview-extra-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: .85rem;
+  margin-bottom: 1.5rem;
+}
+.overview-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.overview-card-header {
+  font-size: .95rem;
+  font-weight: 700;
+  margin-bottom: .75rem;
+}
+.overview-list {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+.overview-item,
+.subnet-summary-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .6rem;
+  padding: .55rem .65rem;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.overview-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.overview-item-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg2);
+}
+.overview-item-count,
+.subnet-summary-stats span {
+  color: var(--fg1);
+  font-weight: 700;
+}
+.subnet-summary-title {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: .75rem;
+  font-size: .9rem;
+  color: var(--fg2);
+}
+.subnet-summary-stats {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  width: 100%;
+  color: var(--fg3);
+}
+.subnet-summary-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg4);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.subnet-summary-bar div {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--cyan));
+}
 .stat-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -319,6 +394,7 @@ svg { display: block; flex-shrink: 0; }
 .ping-log-status.offline { color: var(--red); }
 .ping-log-method { color: var(--fg3); }
 .ping-log-time { color: var(--fg4); margin-left: auto; }
+.ping-log-debug { color: var(--fg4); font-style: normal; margin-left: .5rem; }
 
 /* ── Recent list ─────────────────────────────────────────────────────────── */
 .section-title { font-size: .8rem; font-weight: 600; color: var(--fg3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .75rem; }

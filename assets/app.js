@@ -274,7 +274,11 @@ const App = (() => {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   async function loadStats() {
-    const r = await api('get_stats');
+    const [r, subnetResp, ipsResp] = await Promise.all([
+      api('get_stats'),
+      api('get_subnets'),
+      api('get_ips', { sort: 'ip_addr' }),
+    ]);
     if (!r?.success) return;
     state.stats = r.stats;
     document.getElementById('st-total').textContent     = r.stats.total;
@@ -284,6 +288,70 @@ const App = (() => {
     document.getElementById('st-unchecked').textContent = r.stats.unchecked;
     document.getElementById('st-disabled').textContent  = r.stats.disabled;
     document.getElementById('last-update-time').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
+
+    if (ipsResp?.success) {
+      if (ipsResp.vendor_cache && typeof ipsResp.vendor_cache === 'object') {
+        state.vendorCache = { ...state.vendorCache, ...ipsResp.vendor_cache };
+      }
+      renderDeviceCategories(ipsResp.data);
+    }
+
+    if (subnetResp?.success) {
+      renderSubnetSummary(subnetResp.data);
+    }
+  }
+
+  function renderDeviceCategories(ips) {
+    const counts = {};
+    const order = ['phone','tablet','laptop','server','router','camera','printer','iot','device'];
+    const colors = {
+      phone: '#3b82f6', tablet: '#6366f1', laptop: '#8b5cf6', server: '#06b6d4',
+      router: '#f97316', camera: '#64748b', printer: '#94a3b8', iot: '#84cc16', device: '#475569',
+    };
+
+    ips.forEach(ip => {
+      const mac = (ip.mac || '').replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+      const vendor = mac.length >= 6 ? state.vendorCache[mac.slice(0, 6)] || '' : '';
+      const type = detectDeviceType(vendor, ip.comment || ip.cl_name || '');
+      counts[type] = (counts[type] || 0) + 1;
+    });
+
+    const list = document.getElementById('device-category-list');
+    if (!list) return;
+    const rows = order.filter(type => counts[type]).map(type => {
+      const label = DEVICE_ICONS[type]?.title || '其他';
+      return `<div class="overview-item"><span class="overview-dot" style="background:${colors[type] || 'var(--fg4)'}"></span><span class="overview-item-name">${esc(label)}</span><span class="overview-item-count">${counts[type]}</span></div>`;
+    });
+    if (!rows.length) {
+      list.innerHTML = '<div class="empty-hint">暂无设备类型数据</div>';
+      return;
+    }
+    list.innerHTML = rows.join('');
+  }
+
+  function renderSubnetSummary(subnets) {
+    const list = document.getElementById('subnet-summary-list');
+    if (!list) return;
+    if (!Array.isArray(subnets) || subnets.length === 0) {
+      list.innerHTML = '<div class="empty-hint">暂无网段配置</div>';
+      return;
+    }
+    const rows = subnets.map(sn => {
+      const s = sn.subnet;
+      const used = sn.used_count;
+      const total = sn.total;
+      const free = sn.free_count;
+      const usedPct = total > 0 ? Math.round(used / total * 100) : 0;
+      return `<div class="subnet-summary-row">
+        <div class="subnet-summary-title"><span>${esc(s.name)}</span><span>${esc(s.network)}/${esc(s.prefix)}</span></div>
+        <div class="subnet-summary-stats">
+          <span>已分配 ${used}/${total}</span>
+          <span>空闲 ${free}</span>
+        </div>
+        <div class="subnet-summary-bar"><div style="width:${usedPct}%"></div></div>
+      </div>`;
+    });
+    list.innerHTML = rows.join('');
   }
 
   // Stat card click actions
@@ -491,7 +559,8 @@ const App = (() => {
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       if (dot) { dot.className = `status-dot ${cls}`; dot.title = `${label} ${r.time ?? ''}ms`; dot.innerHTML = svg; }
       const methodLabel = r.method && r.method !== 'ping' ? ` · ${r.method}` : '';
-      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}`, r.online ? 'success' : 'error', 2500);
+      const debugLabel  = r.debug ? ` · ${r.debug}` : '';
+      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}${debugLabel}`, r.online ? 'success' : 'error', 3000);
     }
     loadStats();
   }
@@ -727,7 +796,8 @@ const App = (() => {
 
     for (const entry of state.pingQueue) {
       if (state.pingCancel) break;
-      current.textContent = `正在检测 ${done + 1}/${total}: ${entry.ip}`;
+      summary.textContent = `正在检测… ${done + 1}/${total} ${entry.ip}`;
+      current.textContent = '请稍候，检测结果将逐行输出';
       const r = await api('ping_ip', { ip: entry.ip }, 'GET');
       done++;
       doneTxt.textContent = done;
@@ -743,6 +813,7 @@ const App = (() => {
           <span class="ping-log-status ${r.online ? 'online' : 'offline'}">${statusText}</span>
           <span class="ping-log-method">${esc(r.method || '')}</span>
           <span class="ping-log-time">${r.time != null ? esc(r.time + 'ms') : ''}</span>
+          ${r.debug ? `<span class="ping-log-debug">${esc(r.debug)}</span>` : ''}
         </div>`;
         log.insertAdjacentHTML('beforeend', line);
         log.scrollTop = log.scrollHeight;
@@ -753,6 +824,7 @@ const App = (() => {
           <span class="ping-log-ip">${esc(entry.ip)}</span>
           <span class="ping-log-status offline">失败</span>
           <span class="ping-log-method">${esc(r?.error || '未知错误')}</span>
+          ${r?.debug ? `<span class="ping-log-debug">${esc(r.debug)}</span>` : ''}
         </div>`;
         log.insertAdjacentHTML('beforeend', errorLine);
         log.scrollTop = log.scrollHeight;

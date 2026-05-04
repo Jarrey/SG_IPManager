@@ -176,6 +176,21 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
         </div>
       </div>
 
+      <div class="overview-extra-grid">
+        <div class="overview-card">
+          <div class="overview-card-header">设备类别分布</div>
+          <div id="device-category-list" class="overview-list">
+            <div class="empty-hint">正在统计设备类型...</div>
+          </div>
+        </div>
+        <div class="overview-card">
+          <div class="overview-card-header">网段概览</div>
+          <div id="subnet-summary-list" class="overview-list">
+            <div class="empty-hint">正在加载网段信息...</div>
+          </div>
+        </div>
+      </div>
+
       <!-- Ping progress bar (hidden by default) -->
       <div id="ping-progress-wrap" class="ping-progress-wrap hidden">
         <div class="ping-progress-label">
