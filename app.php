@@ -544,19 +544,59 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       <button class="modal-close icon-btn" data-close="modal-ip-detail">✕</button>
     </div>
     <div class="modal-body">
-      <div class="ip-detail-grid">
-        <div class="ip-detail-row"><span class="ip-detail-label">主机名</span><span id="detail-hostname" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">备 注</span><span id="detail-comment" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">MAC 地址</span><span id="detail-mac" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">厂 商</span><span id="detail-vendor" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">接 口</span><span id="detail-iface" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">启 用</span><span id="detail-enabled" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">网 关</span><span id="detail-gateway" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">DNS 1</span><span id="detail-dns1" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">DNS 2</span><span id="detail-dns2" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row"><span class="ip-detail-label">标 签</span><span id="detail-tags" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row full"><span class="ip-detail-label">上次检测</span><span id="detail-lastcheck" class="ip-detail-value"></span></div>
-        <div class="ip-detail-row full"><span class="ip-detail-label">备忘录</span><span id="detail-notes" class="ip-detail-value"></span></div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>主机名</label>
+          <div id="detail-hostname" class="detail-value"></div>
+        </div>
+        <div class="form-group">
+          <label>MAC 地址</label>
+          <div id="detail-mac" class="detail-value"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>厂 商</label>
+        <div id="detail-vendor" class="detail-value"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>接 口</label>
+          <div id="detail-iface" class="detail-value"></div>
+        </div>
+        <div class="form-group">
+          <label>启 用</label>
+          <div id="detail-enabled" class="detail-value"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>备 注</label>
+        <div id="detail-comment" class="detail-value"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>网 关</label>
+          <div id="detail-gateway" class="detail-value"></div>
+        </div>
+        <div class="form-group">
+          <label>DNS 1</label>
+          <div id="detail-dns1" class="detail-value"></div>
+        </div>
+        <div class="form-group">
+          <label>DNS 2</label>
+          <div id="detail-dns2" class="detail-value"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>标 签</label>
+        <div id="detail-tags" class="detail-value"></div>
+      </div>
+      <div class="form-group">
+        <label>上次检测</label>
+        <div id="detail-lastcheck" class="detail-value"></div>
+      </div>
+      <div class="form-group">
+        <label>备忘录</label>
+        <div id="detail-notes" class="detail-value detail-value-multi"></div>
       </div>
     </div>
     <div class="modal-footer">

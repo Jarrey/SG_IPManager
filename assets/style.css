@@ -919,7 +919,7 @@ select { cursor: pointer; appearance: none;
   animation: modal-in .2s ease;
 }
 .modal-sm { max-width: 380px; }
-.modal-detail { max-width: 520px; }
+.modal-detail { max-width: 560px; }
 @keyframes modal-in { from { opacity: 0; transform: translateY(-16px) scale(.97); } }
 .modal-header {
   display: flex;
@@ -948,12 +948,22 @@ select { cursor: pointer; appearance: none;
 .detail-status-badge.s-online  { background: var(--green-bg);  color: var(--green); }
 .detail-status-badge.s-offline { background: var(--red-bg);    color: var(--red); }
 .detail-status-badge.s-unknown { background: var(--accent-bg); color: var(--accent); }
-.ip-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; }
-.ip-detail-row { display: flex; flex-direction: column; gap: .1rem; padding: .4rem .55rem; background: var(--bg2); border-radius: var(--radius-sm); }
-.ip-detail-row.full { grid-column: 1 / -1; }
-.ip-detail-label { font-size: .7rem; color: var(--fg4); text-transform: uppercase; letter-spacing: .04em; }
-.ip-detail-value { font-size: .88rem; color: var(--fg1); word-break: break-all; }
-.ip-detail-value:empty::after { content: '—'; color: var(--fg4); }
+/* read-only value field — mirrors input appearance */
+.detail-value {
+  width: 100%; box-sizing: border-box;
+  background: var(--bg1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--fg1);
+  padding: .6rem .8rem;
+  font-size: .9rem;
+  min-height: 2.35rem;
+  line-height: 1.4;
+  word-break: break-all;
+  user-select: text;
+}
+.detail-value:empty::after { content: '—'; color: var(--fg4); }
+.detail-value-multi { min-height: 60px; white-space: pre-wrap; word-break: break-word; }
 .ip-addr-link { cursor: pointer; }
 .ip-addr-link:hover { color: var(--accent); text-decoration: underline dotted; text-underline-offset: 2px; }
 .overview-subnet-cell[data-ip-addr] { cursor: pointer; }
