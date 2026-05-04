@@ -446,7 +446,6 @@ svg { display: block; flex-shrink: 0; }
 .ping-log-status.offline { color: var(--red); }
 .ping-log-method { color: var(--fg3); }
 .ping-log-time { color: var(--fg4); margin-left: auto; }
-.ping-log-debug { color: var(--fg4); font-style: normal; margin-left: .5rem; }
 
 /* ── Recent list ─────────────────────────────────────────────────────────── */
 .section-title { font-size: .8rem; font-weight: 600; color: var(--fg3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .75rem; }

@@ -34,7 +34,7 @@ function isDockerHostIP(string $ip, string $rangesConfig = ''): bool {
     return false;
 }
 
-function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = '', string $hostArpPath = ''): array {
+function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = '', bool $enableArp = false): array {
     $ip = filter_var(trim($ip), FILTER_VALIDATE_IP);
     if (!$ip) {
         return ['online' => false, 'time' => null, 'error' => 'Invalid IP'];
@@ -45,25 +45,12 @@ function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = ''
         return ['online' => true, 'time' => 0, 'method' => 'docker_host'];
     }
 
-    if (empty($hostArpPath) && is_readable('/host_proc/net/arp')) {
-        $hostArpPath = '/host_proc/net/arp';
-    }
-
     $disabled = array_map('trim', explode(',', ini_get('disable_functions') ?: ''));
-    $arpDebug = '';
 
-    // 0. ARP / neighbor lookup — fastest for same-LAN devices and local segments
-    if (function_exists('exec') && !in_array('exec', $disabled)) {
-        $r = _arpProbe($ip, $hostArpPath);
-        if (!empty($r['debug_message'])) {
-            $arpDebug = $r['debug_message'];
-        }
-        if ($r['online']) {
-            if ($arpDebug) {
-                $r['debug'] = $arpDebug;
-            }
-            return $r;
-        }
+    // 0. ARP / neighbor lookup — fastest for same-LAN devices (only when enabled)
+    if ($enableArp && function_exists('exec') && !in_array('exec', $disabled)) {
+        $r = _arpProbe($ip);
+        if ($r['online']) return $r;
     }
 
     // 1. ICMP ping — fastest and most accurate
@@ -77,42 +64,13 @@ function pingIP(string $ip, int $timeoutMs = 1000, string $dockerHostRanges = ''
     if ($r['online']) return $r;
 
     // 3. HTTP probe — sends actual HTTP request; covers web-only devices (NAS, smart TV, etc.)
-    $result = _pingHTTP($ip, $timeoutMs);
-    if ($arpDebug && empty($result['debug'])) {
-        $result['debug'] = $arpDebug;
-    }
-    return $result;
+    return _pingHTTP($ip, $timeoutMs);
 }
 
-function _arpProbe(string $ip, string $hostArpPath = ''): array {
+function _arpProbe(string $ip): array {
     $out = [];
     $ret = 1;
     $isWin = (PHP_OS_FAMILY === 'Windows') || (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN');
-
-    if ($hostArpPath) {
-        if (!is_readable($hostArpPath)) {
-            return ['online' => false, 'time' => 0, 'method' => 'arp', 'debug_message' => "宿主机 ARP 文件不可读：{$hostArpPath}"];
-        }
-        $lines = @file($hostArpPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        if ($lines === false) {
-            return ['online' => false, 'time' => 0, 'method' => 'arp', 'debug_message' => "无法读取宿主机 ARP 文件：{$hostArpPath}"];
-        }
-        foreach ($lines as $line) {
-            $parts = preg_split('/\s+/', trim($line));
-            if (count($parts) < 4) {
-                continue;
-            }
-            if ($parts[0] !== $ip) {
-                continue;
-            }
-            $mac = strtolower($parts[3] ?? '');
-            $flags = strtolower($parts[2] ?? '');
-            if ($mac !== '00:00:00:00:00:00' && $mac !== '00-00-00-00-00-00' && $flags !== '0x0') {
-                return ['online' => true, 'time' => 0, 'method' => 'arp', 'debug_message' => "使用宿主机 ARP 表命中：{$hostArpPath}"];
-            }
-        }
-        return ['online' => false, 'time' => 0, 'method' => 'arp', 'debug_message' => "宿主机 ARP 表未命中：{$hostArpPath}"];
-    }
 
     if ($isWin) {
         @exec('arp -a ' . escapeshellarg($ip) . ' 2>&1', $out, $ret);

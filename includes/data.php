@@ -123,7 +123,7 @@ function getSettings(): array {
             'ping_timeout'      => 1000,
             'mac_cache_months'  => 6,
             'docker_host_ranges' => '', // e.g., "192.168.2.6-192.168.2.10" for Docker host IPs
-            'host_arp_path'     => '', // e.g., "/host_proc/net/arp" when running inside Docker
+            'enable_arp'        => false, // ARP probe as first detection step (disable in bridge-mode Docker)
         ];
         _atomicWriteData(SETTINGS_FILE, json_encode($default, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
         return $default;

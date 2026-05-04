@@ -608,8 +608,7 @@ const App = (() => {
         : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
       if (dot) { dot.className = `status-dot ${cls}`; dot.title = `${label} ${r.time ?? ''}ms`; dot.innerHTML = svg; }
       const methodLabel = r.method && r.method !== 'ping' ? ` · ${r.method}` : '';
-      const debugLabel  = r.debug ? ` · DEBUG: ${r.debug}` : '';
-      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}${debugLabel}`, r.online ? 'success' : 'error', 4000);
+      toast(`${ip}: ${label}${r.time != null ? ' (' + r.time + 'ms)' : ''}${methodLabel}`, r.online ? 'success' : 'error', 4000);
     }
     loadStats();
   }
@@ -876,7 +875,6 @@ const App = (() => {
           <span class="ping-log-status ${r.online ? 'online' : 'offline'}">${statusText}</span>
           <span class="ping-log-method">${esc(r.method || '')}</span>
           <span class="ping-log-time">${r.time != null ? esc(r.time + 'ms') : ''}</span>
-          ${r.debug ? `<span class="ping-log-debug">DEBUG: ${esc(r.debug)}</span>` : ''}
         </div>`;
         log.insertAdjacentHTML('beforeend', line);
         log.scrollTop = log.scrollHeight;
@@ -887,7 +885,6 @@ const App = (() => {
           <span class="ping-log-ip">${esc(entry.ip)}</span>
           <span class="ping-log-status offline">失败</span>
           <span class="ping-log-method">${esc(r?.error || '未知错误')}</span>
-          ${r?.debug ? `<span class="ping-log-debug">DEBUG: ${esc(r.debug)}</span>` : ''}
         </div>`;
         log.insertAdjacentHTML('beforeend', errorLine);
         log.scrollTop = log.scrollHeight;
@@ -1158,8 +1155,8 @@ const App = (() => {
     if (macCacheEl) macCacheEl.value = String(s.mac_cache_months ?? 6);
     const dockerHostRangesEl = document.getElementById('set-docker-host-ranges');
     if (dockerHostRangesEl) dockerHostRangesEl.value = s.docker_host_ranges ?? '';
-    const hostArpPathEl = document.getElementById('set-host-arp-path');
-    if (hostArpPathEl) hostArpPathEl.value = s.host_arp_path ?? '';
+    const enableArpEl = document.getElementById('set-enable-arp');
+    if (enableArpEl) enableArpEl.checked = !!(s.enable_arp);
     renderSubnetList(s.subnets || []);
     state.settingsLoaded = true;
   }
@@ -1175,7 +1172,7 @@ const App = (() => {
       ping_timeout:      document.getElementById('set-ping-timeout').value,
       mac_cache_months:  document.getElementById('set-mac-cache-months')?.value || '6',
       docker_host_ranges:document.getElementById('set-docker-host-ranges')?.value.trim() || '',
-      host_arp_path:     document.getElementById('set-host-arp-path')?.value.trim() || '',
+      enable_arp:        document.getElementById('set-enable-arp')?.checked ? '1' : '0',
     };
     // Only include subnets after settings have been loaded to prevent accidental data loss
     if (state.settingsLoaded) {

@@ -265,12 +265,11 @@ switch ($action) {
         if (!$addr) { $out = ['success' => false, 'error' => 'Invalid IP']; break; }
         $settings = getSettings();
         $dockerHostRanges = $settings['docker_host_ranges'] ?? '';
-        $hostArpPath = $settings['host_arp_path'] ?? '';
-        $result   = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges, $hostArpPath);
+        $enableArp = !empty($settings['enable_arp']);
+        $result   = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges, $enableArp);
         $saved    = updatePingResult($addr, $result);
         $out      = ['success' => true, 'ip' => $addr, 'online' => $result['online'],
                      'time' => $result['time'], 'method' => $result['method'] ?? null,
-                     'debug' => $result['debug'] ?? null,
                      'checked_at' => $saved['last_check']];
         break;
     }
@@ -281,14 +280,14 @@ switch ($action) {
         $ips      = getIPs();
         $settings = getSettings();
         $dockerHostRanges = $settings['docker_host_ranges'] ?? '';
-        $hostArpPath = $settings['host_arp_path'] ?? '';
+        $enableArp = !empty($settings['enable_arp']);
         $results  = [];
         foreach ($ips as $entry) {
             $addr = $entry['ip_addr'] ?? '';
             if (!$addr) continue;
-            $r         = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges, $hostArpPath);
+            $r         = pingIP($addr, (int)($settings['ping_timeout'] ?? 1000), $dockerHostRanges, $enableArp);
             $saved     = updatePingResult($addr, $r);
-            $results[$addr] = ['online' => $r['online'], 'time' => $r['time'], 'method' => $r['method'] ?? null, 'debug' => $r['debug'] ?? null, 'checked_at' => $saved['last_check']];
+            $results[$addr] = ['online' => $r['online'], 'time' => $r['time'], 'method' => $r['method'] ?? null, 'checked_at' => $saved['last_check']];
         }
         $out = ['success' => true, 'results' => $results, 'total' => count($results)];
         break;
@@ -429,8 +428,8 @@ switch ($action) {
         if (isset($_POST['docker_host_ranges'])) {
             $s['docker_host_ranges'] = htmlspecialchars(strip_tags(trim((string)$_POST['docker_host_ranges'])), ENT_QUOTES);
         }
-        if (isset($_POST['host_arp_path'])) {
-            $s['host_arp_path'] = htmlspecialchars(strip_tags(trim((string)$_POST['host_arp_path'])), ENT_QUOTES);
+        if (isset($_POST['enable_arp'])) {
+            $s['enable_arp'] = ($_POST['enable_arp'] === '1' || $_POST['enable_arp'] === 'true');
         }
         if (isset($_POST['subnets'])) {
             $raw = json_decode($_POST['subnets'], true);
