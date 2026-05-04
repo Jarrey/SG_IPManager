@@ -95,15 +95,18 @@ docker compose up -d
 
 - 数据持久化目录为宿主机 `./data`（映射到容器 `/var/www/html/data`）
 - 若 8080 端口占用，可在 `docker/.env` 中修改 `HTTP_PORT`
-- 若要在 Docker 内更好地使用 ARP 方式检测局域网设备，可将宿主机 ARP 表挂载到容器，例如：
 
-```bash
--v /proc/net/arp:/host_proc/net/arp:ro
-```
+## ARP 检测说明
 
-然后在设置页填写 `宿主机 ARP 表路径` 为 `/host_proc/net/arp`。
+设置页面新增了 `启用 ARP 检测（优先检测）` 开关。
 
-> 注意：如果容器仍运行在 Docker 默认桥接网络，直接 ARP 扫描可能仍限于容器自身的网络命名空间。读取宿主机 ARP 文件是无需修改 Docker 网络模式的推荐方案。
+- 开启后：系统会先尝试 ARP，可提升同局域网设备的检测速度
+- 关闭后：系统不使用 ARP，直接从 ICMP/TCP/HTTP 等方式开始检测
+
+Docker 网络模式建议：
+
+- `host` 模式：可以开启 ARP（需要 ARP 优先检测时推荐）
+- `bridge` 模式：不建议开启 ARP（容器 ARP 可见性受限，可能拖慢整体检测）
 
 ## 注意事项
 

@@ -101,15 +101,18 @@ Notes:
 
 - Persistent data is stored in host path `./data` (mapped to container `/var/www/html/data`)
 - Change `HTTP_PORT` in `docker/.env` if `8080` is already in use
-- For better ARP-based LAN device discovery from inside Docker, mount the host ARP table into the container, for example:
 
-```bash
--v /proc/net/arp:/host_proc/net/arp:ro
-```
+## ARP Detection Notes
 
-Then set `Host ARP path` in Settings to `/host_proc/net/arp`.
+The Settings page provides an `Enable ARP detection` switch.
 
-> Note: if the container is on Docker's default bridge network, direct ARP scanning may still be limited to the container's own network namespace. Reading the host ARP file is the preferred workaround without changing Docker network mode.
+- When enabled, the system tries ARP first, which can improve scan speed on same-LAN devices
+- When disabled, ARP is skipped and detection starts from ICMP/TCP/HTTP methods
+
+Docker network mode recommendation:
+
+- `host` network mode: ARP can be enabled (recommended if you need ARP-first detection)
+- `bridge` network mode: do not enable ARP (container ARP visibility is limited and may reduce overall efficiency)
 
 ## Notes
 
