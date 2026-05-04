@@ -429,9 +429,12 @@ switch ($action) {
         if (isset($_POST['host_arp_path'])) {
             $s['host_arp_path'] = htmlspecialchars(strip_tags(trim((string)$_POST['host_arp_path'])), ENT_QUOTES);
         }
-        if (!empty($_POST['subnets'])) {
+        if (isset($_POST['subnets'])) {
             $raw = json_decode($_POST['subnets'], true);
-            if (is_array($raw)) {
+            // Only overwrite stored subnets when a non-empty validated array is submitted.
+            // An empty array from a race-condition (settings not yet loaded client-side)
+            // would otherwise silently erase all saved subnets.
+            if (is_array($raw) && count($raw) > 0) {
                 $valid = [];
                 foreach ($raw as $sn) {
                     $net = filter_var(trim($sn['network'] ?? ''), FILTER_VALIDATE_IP);
@@ -446,7 +449,12 @@ switch ($action) {
                         'gateway'     => filter_var(trim($sn['gateway'] ?? ''), FILTER_VALIDATE_IP) ?: '',
                     ];
                 }
-                $s['subnets'] = $valid;
+                if (!empty($valid)) {
+                    $s['subnets'] = $valid;
+                }
+            } elseif (is_array($raw) && count($raw) === 0 && isset($_POST['clear_subnets']) && $_POST['clear_subnets'] === '1') {
+                // Explicit intentional clear (must pass clear_subnets=1)
+                $s['subnets'] = [];
             }
         }
         saveSettings($s);

@@ -26,6 +26,7 @@ const App = (() => {
     pingCancel:   false,
     currentPage:  'overview',
     settings:     {},
+    settingsLoaded: false,
     stats:        {},
     vendorCache:  {},   // oui(6-char-hex) → vendor string
   };
@@ -1079,39 +1080,49 @@ const App = (() => {
 
   // ── Settings ──────────────────────────────────────────────────────────────
   async function loadSettings() {
-    const r = await api('get_settings');
-    if (!r?.success) return;
+    let r;
+    try { r = await api('get_settings'); } catch(e) { toast('加载设置失败', 'error'); return; }
+    if (!r?.success) { toast(r?.error || '加载设置失败', 'error'); return; }
     state.settings = r.settings;
+    const s = r.settings;
     const gatewayEl = document.getElementById('set-gateway');
-    if (gatewayEl) gatewayEl.value = r.settings.default_gateway ?? '';
+    if (gatewayEl) gatewayEl.value = s.default_gateway ?? '';
     const ifaceEl = document.getElementById('set-iface');
-    if (ifaceEl) ifaceEl.value = r.settings.default_interface ?? '';
+    if (ifaceEl) ifaceEl.value = s.default_interface ?? '';
+    const pingEl = document.getElementById('set-ping-timeout');
+    if (pingEl) pingEl.value = String(s.ping_timeout ?? 1000);
     const macCacheEl = document.getElementById('set-mac-cache-months');
-    if (macCacheEl) {
-      macCacheEl.value = String(r.settings.mac_cache_months ?? 6);
-    }
+    if (macCacheEl) macCacheEl.value = String(s.mac_cache_months ?? 6);
     const dockerHostRangesEl = document.getElementById('set-docker-host-ranges');
-    if (dockerHostRangesEl) {
-      dockerHostRangesEl.value = r.settings.docker_host_ranges ?? '';
-    }
+    if (dockerHostRangesEl) dockerHostRangesEl.value = s.docker_host_ranges ?? '';
     const hostArpPathEl = document.getElementById('set-host-arp-path');
-    if (hostArpPathEl) {
-      hostArpPathEl.value = r.settings.host_arp_path ?? '';
-    }
-    renderSubnetList(r.settings.subnets || []);
+    if (hostArpPathEl) hostArpPathEl.value = s.host_arp_path ?? '';
+    renderSubnetList(s.subnets || []);
+    state.settingsLoaded = true;
   }
 
   document.getElementById('btn-save-settings')?.addEventListener('click', async () => {
-    const r = await api('save_settings', {
+    // If settings haven't been loaded yet, load them first to avoid overwriting subnets with empty array
+    if (!state.settingsLoaded) {
+      await loadSettings();
+    }
+    const payload = {
       default_gateway:   document.getElementById('set-gateway').value.trim(),
       default_interface: document.getElementById('set-iface').value.trim(),
       ping_timeout:      document.getElementById('set-ping-timeout').value,
       mac_cache_months:  document.getElementById('set-mac-cache-months')?.value || '6',
       docker_host_ranges:document.getElementById('set-docker-host-ranges')?.value.trim() || '',
       host_arp_path:     document.getElementById('set-host-arp-path')?.value.trim() || '',
-      subnets:           JSON.stringify(state.settings.subnets || []),
-    }, 'POST');
-    if (r?.success) { toast('设置已保存', 'success'); state.settings = r.settings; }
+    };
+    // Only include subnets after settings have been loaded to prevent accidental data loss
+    if (state.settingsLoaded) {
+      const subnets = state.settings.subnets || [];
+      payload.subnets = JSON.stringify(subnets);
+      // Signal intentional clear when user has deleted all subnets via the UI
+      if (subnets.length === 0) payload.clear_subnets = '1';
+    }
+    const r = await api('save_settings', payload, 'POST');
+    if (r?.success) { toast('设置已保存', 'success'); state.settings = r.settings; state.settingsLoaded = true; }
     else toast(r?.error || '保存失败', 'error');
   });
 
