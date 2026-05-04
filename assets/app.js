@@ -338,63 +338,30 @@ const App = (() => {
     }
     const rows = subnets.map(sn => {
       const s = sn.subnet;
-      const total = sn.total;
-      const free = sn.free_count;
-      const counts = { online: 0, offline: 0, unchecked: 0, disabled: 0 };
-      sn.used.forEach(u => {
-        if (u.enabled === 'no') counts.disabled++;
-        else counts[u.status] = (counts[u.status] || 0) + 1;
-      });
-      const blocks = buildSubnetSummaryBlocks(counts, free, total, 16);
-      const blockHtml = blocks.map(b => `<span class="subnet-summary-chip ${b.cls}" title="${esc(b.label)} ${b.count}"></span>`).join('');
+      const usedByIP = {};
+      sn.used.forEach(u => { usedByIP[u.ip_addr] = u; });
+      const parts = s.network.split('.');
+      const base = parts.slice(0, 3).join('.');
+      const cells = [];
+      for (let i = s.range_start; i <= s.range_end; i++) {
+        const ipStr = `${base}.${i}`;
+        const u = usedByIP[ipStr];
+        const cls = u ? (u.enabled === 'no' ? 'used-disabled' : `used-${u.status}`) : 'free';
+        cells.push(`<span class="overview-subnet-cell ${cls}" title="${esc(ipStr)}"></span>`);
+      }
       return `<div class="subnet-summary-row">
         <div class="subnet-summary-title"><span>${esc(s.name)}</span><span>${esc(s.network)}/${esc(s.prefix)}</span></div>
-        <div class="subnet-summary-chips">${blockHtml}</div>
+        <div class="overview-subnet-grid">${cells.join('')}</div>
         <div class="subnet-summary-stats">
-          <span>在线 ${counts.online}</span>
-          <span>离线 ${counts.offline}</span>
-          <span>未检测 ${counts.unchecked}</span>
-          <span>已禁用 ${counts.disabled}</span>
-          <span>空闲 ${free}</span>
+          <span>在线 ${sn.used.filter(u => u.status === 'online').length}</span>
+          <span>离线 ${sn.used.filter(u => u.status === 'offline').length}</span>
+          <span>未检测 ${sn.used.filter(u => u.status === 'unchecked').length}</span>
+          <span>已禁用 ${sn.used.filter(u => u.enabled === 'no').length}</span>
+          <span>空闲 ${sn.free_count}</span>
         </div>
-        <div class="subnet-summary-bar"><div style="width:${total > 0 ? Math.round((total - free) / total * 100) : 0}%"></div></div>
       </div>`;
     });
     list.innerHTML = rows.join('');
-  }
-
-  function buildSubnetSummaryBlocks(counts, free, total, maxBlocks) {
-    if (total <= 0) return [];
-    const segments = [
-      { key: 'online', count: counts.online, cls: 'used-online', label: '在线' },
-      { key: 'offline', count: counts.offline, cls: 'used-offline', label: '离线' },
-      { key: 'unchecked', count: counts.unchecked, cls: 'used-unchecked', label: '未检测' },
-      { key: 'disabled', count: counts.disabled, cls: 'used-disabled', label: '已禁用' },
-      { key: 'free', count: free, cls: 'free', label: '空闲' },
-    ];
-    const blocks = [];
-    const target = Math.min(maxBlocks, total);
-    let remainder = 0;
-    const assigned = segments.map(seg => {
-      const exact = seg.count / total * target;
-      const floored = Math.floor(exact);
-      remainder += exact - floored;
-      return { ...seg, blocks: floored, rem: exact - floored };
-    });
-    let left = target - assigned.reduce((sum, seg) => sum + seg.blocks, 0);
-    assigned.sort((a, b) => b.rem - a.rem);
-    for (const seg of assigned) {
-      if (left > 0 && seg.count > 0) {
-        seg.blocks++;
-        left--;
-      }
-    }
-    assigned.forEach(seg => {
-      for (let i = 0; i < seg.blocks; i++) {
-        blocks.push({ cls: seg.cls, label: seg.label, count: seg.count });
-      }
-    });
-    return blocks;
   }
 
   // Stat card click actions
@@ -1108,9 +1075,17 @@ const App = (() => {
     const r = await api('get_settings');
     if (!r?.success) return;
     state.settings = r.settings;
+    const gatewayEl = document.getElementById('set-gateway');
+    if (gatewayEl) gatewayEl.value = r.settings.default_gateway ?? '';
+    const ifaceEl = document.getElementById('set-iface');
+    if (ifaceEl) ifaceEl.value = r.settings.default_interface ?? '';
     const macCacheEl = document.getElementById('set-mac-cache-months');
     if (macCacheEl) {
       macCacheEl.value = String(r.settings.mac_cache_months ?? 6);
+    }
+    const dockerHostRangesEl = document.getElementById('set-docker-host-ranges');
+    if (dockerHostRangesEl) {
+      dockerHostRangesEl.value = r.settings.docker_host_ranges ?? '';
     }
     const hostArpPathEl = document.getElementById('set-host-arp-path');
     if (hostArpPathEl) {

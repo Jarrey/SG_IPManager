@@ -245,12 +245,27 @@ svg { display: block; flex-shrink: 0; }
 .overview-item,
 .subnet-summary-row {
   display: flex;
-  flex-direction: column;
-  gap: .5rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .6rem;
   padding: .55rem .65rem;
   background: var(--bg3);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+}
+.overview-item {
+  flex-wrap: nowrap;
+}
+.overview-item-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg2);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.overview-item-count {
+  flex-shrink: 0;
 }
 .overview-dot {
   width: 10px;
@@ -276,6 +291,26 @@ svg { display: block; flex-shrink: 0; }
   font-size: .9rem;
   color: var(--fg2);
 }
+.overview-subnet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(6px, 1fr));
+  gap: 2px;
+  width: 100%;
+  min-height: 10px;
+  max-height: 220px;
+  overflow: hidden;
+}
+.overview-subnet-cell {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 2px;
+  background: var(--bg3);
+}
+.overview-subnet-cell.used-online   { background: var(--green); }
+.overview-subnet-cell.used-offline  { background: var(--red); }
+.overview-subnet-cell.used-unchecked{ background: var(--accent); }
+.overview-subnet-cell.used-disabled { background: var(--fg4); }
+.overview-subnet-cell.free          { background: var(--bg4); border: 1px solid var(--border); }
 .subnet-summary-stats {
   display: flex;
   gap: 1rem;
@@ -284,10 +319,7 @@ svg { display: block; flex-shrink: 0; }
   color: var(--fg3);
 }
 .subnet-summary-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  width: 100%;
+  display: none;
 }
 .subnet-summary-chip {
   width: 12px;
