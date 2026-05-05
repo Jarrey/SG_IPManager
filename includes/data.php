@@ -3,6 +3,24 @@ require_once __DIR__ . '/config.php';
 
 // ── Low-level helpers ────────────────────────────────────────────────────────
 
+/** Check if a byte string is valid UTF-8 without requiring the mbstring extension. */
+function _isValidUTF8(string $s): bool {
+    return (bool) preg_match('//u', $s);
+}
+
+/** Convert GBK/GB2312 bytes to UTF-8, using iconv when available, else a best-effort strip. */
+function _convertFromGBK(string $s): string {
+    if (function_exists('iconv')) {
+        $out = @iconv('GBK', 'UTF-8//IGNORE', $s);
+        return ($out !== false && $out !== '') ? $out : $s;
+    }
+    if (function_exists('mb_convert_encoding')) {
+        return mb_convert_encoding($s, 'UTF-8', 'GBK');
+    }
+    // Last resort: strip non-ASCII bytes so the rest of the CSV can still parse
+    return preg_replace('/[\x80-\xFF]/', '?', $s);
+}
+
 function _atomicWriteData(string $file, string $content): void {
     $tmp = $file . '.tmp.' . getmypid();
     file_put_contents($tmp, $content, LOCK_EX);
@@ -40,9 +58,9 @@ function parseCSVContent(string $content): array {
     // 1. Strip UTF-8 BOM if present
     if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
         $content = substr($content, 3);
-    } elseif (!mb_check_encoding($content, 'UTF-8')) {
+    } elseif (!_isValidUTF8($content)) {
         // Not valid UTF-8 — treat as GBK / GB2312 / GB18030
-        $content = mb_convert_encoding($content, 'UTF-8', 'GBK');
+        $content = _convertFromGBK($content);
     }
 
     $lines   = preg_split('/\r?\n/', trim($content));
@@ -53,7 +71,7 @@ function parseCSVContent(string $content): array {
         $line = trim($line);
         if ($line === '') continue;
 
-        $row = str_getcsv($line, ',', '"');
+        $row = str_getcsv($line, ',', '"', '');
 
         // First data-looking row containing 'ip_addr' is the header
         if ($headers === null) {
@@ -210,8 +228,8 @@ function parseNATCSVContent(string $content): array {
     // Detect & convert encoding
     if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
         $content = substr($content, 3);
-    } elseif (!mb_check_encoding($content, 'UTF-8')) {
-        $content = mb_convert_encoding($content, 'UTF-8', 'GBK');
+    } elseif (!_isValidUTF8($content)) {
+        $content = _convertFromGBK($content);
     }
 
     $lines   = preg_split('/\r?\n/', trim($content));
@@ -222,7 +240,7 @@ function parseNATCSVContent(string $content): array {
         $line = trim($line);
         if ($line === '') continue;
 
-        $row = str_getcsv($line, ',', '"');
+        $row = str_getcsv($line, ',', '"', '');
 
         if ($headers === null) {
             // Detect header row by checking for known NAT CSV columns

@@ -1163,9 +1163,10 @@ const App = (() => {
       importFile    = null;
     });
 
-    document.getElementById('btn-export')?.addEventListener('click', () => {
+    document.getElementById('btn-export')?.addEventListener('click', async () => {
       const scope = document.getElementById('export-scope')?.value;
       const url   = `api.php?action=export_csv${scope === 'enabled' ? '&enabled_only=1' : ''}`;
+      toast('正在导出，文件即将下载…', 'info');
       window.location.href = url;
     });
 
@@ -1263,7 +1264,14 @@ const App = (() => {
     }
 
     const res  = await fetch('api.php?action=import_csv', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
-    const r    = await res.json();
+    if (res.status === 401) { window.location = 'index.php'; return; }
+    const text = await res.text();
+    let r;
+    try { r = JSON.parse(text); } catch (_) {
+      const m = text.match(/<b>(?:Fatal error|Error)<\/b>:\s*([^<]+)/i);
+      toast('服务器错误：' + (m ? m[1].trim() : '请检查PHP日志'), 'error');
+      return;
+    }
     if (r.success) {
       toast(`导入成功：新增 ${r.added}，更新 ${r.updated}`, 'success');
       document.getElementById('import-preview').classList.add('hidden');
@@ -1751,9 +1759,10 @@ const App = (() => {
       natImportFile    = null;
     });
 
-    document.getElementById('btn-nat-export')?.addEventListener('click', () => {
+    document.getElementById('btn-nat-export')?.addEventListener('click', async () => {
       const scope = document.getElementById('nat-export-scope')?.value;
       const url   = `api.php?action=export_nat_csv${scope === 'enabled' ? '&enabled_only=1' : ''}`;
+      toast('正在导出，文件即将下载…', 'info');
       window.location.href = url;
     });
   }
@@ -1798,16 +1807,28 @@ const App = (() => {
     } else {
       fd.append('csv_content', natImportContent);
     }
-    const res = await fetch('api.php?action=import_nat_csv', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
-    const r   = await res.json();
-    if (r.success) {
-      toast(`端口映射导入成功：新增 ${r.added}，更新 ${r.updated}`, 'success');
-      document.getElementById('nat-import-preview').classList.add('hidden');
-      natImportContent = '';
-      natImportFile    = null;
-      loadPortMaps();
-      loadPortMapStats();
-    } else toast(r.error || '导入失败', 'error');
+    try {
+      const res = await fetch('api.php?action=import_nat_csv', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
+      if (res.status === 401) { window.location = 'index.php'; return; }
+      const text = await res.text();
+      let r;
+      try { r = JSON.parse(text); } catch (_) {
+        // PHP returned HTML (fatal error) — extract the message if possible
+        const m = text.match(/<b>(?:Fatal error|Error)<\/b>:\s*([^<]+)/i);
+        toast('服务器错误：' + (m ? m[1].trim() : '请检查PHP日志'), 'error');
+        return;
+      }
+      if (r.success) {
+        toast(`端口映射导入成功：新增 ${r.added}，更新 ${r.updated}`, 'success');
+        document.getElementById('nat-import-preview').classList.add('hidden');
+        natImportContent = '';
+        natImportFile    = null;
+        loadPortMaps();
+        loadPortMapStats();
+      } else toast(r.error || '导入失败', 'error');
+    } catch (e) {
+      toast('网络错误：' + e.message, 'error');
+    }
   }
 
   // ── Interface filter update ───────────────────────────────────────────────
