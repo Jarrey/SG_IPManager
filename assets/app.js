@@ -976,7 +976,7 @@ const App = (() => {
     if (state.currentPage !== 'overview') showPage('overview');
 
     // Concurrent batch pinging with configurable concurrency
-    const CONCURRENT_PINGS = 5;
+    const CONCURRENT_PINGS = Math.min(20, Math.max(1, (state.settings.ping_concurrency ?? 5)));
     const queue = [...state.pingQueue];
     const running = new Set();
 
@@ -1339,6 +1339,8 @@ const App = (() => {
     if (dockerHostRangesEl) dockerHostRangesEl.value = s.docker_host_ranges ?? '';
     const enableArpEl = document.getElementById('set-enable-arp');
     if (enableArpEl) enableArpEl.checked = !!(s.enable_arp);
+    const concurrencyEl = document.getElementById('set-ping-concurrency');
+    if (concurrencyEl) concurrencyEl.value = String(s.ping_concurrency ?? 5);
     renderSubnetList(s.subnets || []);
     state.settingsLoaded = true;
   }
@@ -1355,6 +1357,7 @@ const App = (() => {
       mac_cache_months:  document.getElementById('set-mac-cache-months')?.value || '6',
       docker_host_ranges:document.getElementById('set-docker-host-ranges')?.value.trim() || '',
       enable_arp:        document.getElementById('set-enable-arp')?.checked ? '1' : '0',
+      ping_concurrency:  document.getElementById('set-ping-concurrency')?.value || '5',
     };
     // Only include subnets after settings have been loaded to prevent accidental data loss
     if (state.settingsLoaded) {

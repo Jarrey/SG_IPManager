@@ -437,6 +437,9 @@ switch ($action) {
         if (isset($_POST['enable_arp'])) {
             $s['enable_arp'] = ($_POST['enable_arp'] === '1' || $_POST['enable_arp'] === 'true');
         }
+        if (isset($_POST['ping_concurrency'])) {
+            $s['ping_concurrency'] = min(20, max(1, (int)$_POST['ping_concurrency']));
+        }
         if (isset($_POST['subnets'])) {
             $raw = json_decode($_POST['subnets'], true);
             // Only overwrite stored subnets when a non-empty validated array is submitted.

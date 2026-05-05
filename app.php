@@ -503,6 +503,10 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
               <input type="number" id="set-ping-timeout" class="input-full" min="100" max="10000" step="100" value="<?= (int)($settings['ping_timeout'] ?? 1000) ?>">
             </div>
             <div class="form-group">
+              <label>Ping 并发数 <small style="color: var(--fg4)">(1-20，同时检测的 IP 数量)</small></label>
+              <input type="number" id="set-ping-concurrency" class="input-full" min="1" max="20" step="1" value="<?= (int)($settings['ping_concurrency'] ?? 5) ?>">
+            </div>
+            <div class="form-group">
               <label>MAC 厂商缓存有效期（月）</label>
               <input type="number" id="set-mac-cache-months" class="input-full" min="1" max="24" step="1" value="<?= (int)($settings['mac_cache_months'] ?? 6) ?>">
             </div>

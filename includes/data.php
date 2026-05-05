@@ -186,6 +186,7 @@ function getSettings(): array {
         'mac_cache_months'  => 6,
         'docker_host_ranges' => '',
         'enable_arp'        => false,
+        'ping_concurrency'  => 5,
     ];
     _atomicWriteData(SETTINGS_FILE, json_encode($default, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     $_DATA_CACHE[SETTINGS_FILE] = $default;
