@@ -795,25 +795,30 @@ const App = (() => {
     } else toast(r?.error || '删除失败', 'error');
   });
 
-  function renderPagination(total) {
-    const pages = Math.max(1, Math.ceil(total / state.pageSize));
-    const pag   = document.getElementById('pagination');
+  // ── Shared pagination ────────────────────────────────────────────────────────
+  function renderGenericPagination(total, pageSize, currentPage, containerId, onPageChange) {
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    const pag   = document.getElementById(containerId);
     if (!pag) return;
     if (pages <= 1) { pag.innerHTML = ''; return; }
 
-    let html = `<button class="page-btn" ${state.page <= 1 ? 'disabled' : ''} data-p="${state.page-1}">‹</button>`;
-    const start = Math.max(1, state.page - 2);
-    const end   = Math.min(pages, state.page + 2);
+    let html = `<button class="page-btn" ${currentPage <= 1 ? 'disabled' : ''} data-p="${currentPage - 1}">‹</button>`;
+    const start = Math.max(1, currentPage - 2);
+    const end   = Math.min(pages, currentPage + 2);
     if (start > 1) html += `<button class="page-btn" data-p="1">1</button>${start > 2 ? '<span style="color:var(--fg4);padding:0 .25rem">…</span>' : ''}`;
     for (let i = start; i <= end; i++) {
-      html += `<button class="page-btn ${i === state.page ? 'active' : ''}" data-p="${i}">${i}</button>`;
+      html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" data-p="${i}">${i}</button>`;
     }
     if (end < pages) html += `${end < pages - 1 ? '<span style="color:var(--fg4);padding:0 .25rem">…</span>' : ''}<button class="page-btn" data-p="${pages}">${pages}</button>`;
-    html += `<button class="page-btn" ${state.page >= pages ? 'disabled' : ''} data-p="${state.page+1}">›</button>`;
+    html += `<button class="page-btn" ${currentPage >= pages ? 'disabled' : ''} data-p="${currentPage + 1}">›</button>`;
     pag.innerHTML = html;
     pag.querySelectorAll('.page-btn[data-p]').forEach(btn => {
-      btn.addEventListener('click', () => { state.page = parseInt(btn.dataset.p); renderTable(); });
+      btn.addEventListener('click', () => { onPageChange(parseInt(btn.dataset.p)); });
     });
+  }
+
+  function renderPagination(total) {
+    renderGenericPagination(total, state.pageSize, state.page, 'pagination', (p) => { state.page = p; renderTable(); });
   }
 
   // ── IP Form ────────────────────────────────────────────────────────────────
@@ -970,51 +975,84 @@ const App = (() => {
     // switch to overview
     if (state.currentPage !== 'overview') showPage('overview');
 
-    for (const entry of state.pingQueue) {
-      if (state.pingCancel) break;
-      current.textContent = `正在检测 ${entry.ip}${entry.label ? ' · ' + entry.label : ''}…`;
-      let r;
-      try {
-        r = await api('ping_ip', { ip: entry.ip }, 'GET');
-      } catch(e) {
-        done++;
-        doneTxt.textContent = done;
-        fill.style.width = Math.round((done / total) * 100) + '%';
-        const ts = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-        log.insertAdjacentHTML('beforeend', `<div class="ping-log-item"><span class="ping-log-ts">${esc(ts)}</span><span class="ping-log-ip">${esc(entry.ip)}</span>${entry.label ? `<span class="ping-log-name">${esc(entry.label)}</span>` : ''}<span class="ping-log-status offline">请求失败</span></div>`);
-        log.scrollTop = log.scrollHeight;
-        continue;
-      }
-      done++;
-      doneTxt.textContent = done;
-      fill.style.width = Math.round((done / total) * 100) + '%';
-      const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
-      if (r?.success) {
-        const methodLabel = r.method ? ` · ${r.method}` : '';
-        const statusText = r.online ? '在线' : '离线';
-        current.textContent = `已检测 ${entry.ip}：${statusText}${methodLabel}`;
-        const line = `<div class="ping-log-item">
+    // Concurrent batch pinging with configurable concurrency
+    const CONCURRENT_PINGS = 5;
+    const queue = [...state.pingQueue];
+    const running = new Set();
+
+    function addLogEntry(entry, statusText, online, method, time, errorMsg, timestamp) {
+      if (online !== undefined) {
+        const methodLabel = method ? ` · ${method}` : '';
+        log.insertAdjacentHTML('beforeend', `<div class="ping-log-item">
           <span class="ping-log-ts">${esc(timestamp)}</span>
           <span class="ping-log-ip">${esc(entry.ip)}</span>
           ${entry.label ? `<span class="ping-log-name">${esc(entry.label)}</span>` : ''}
-          <span class="ping-log-status ${r.online ? 'online' : 'offline'}">${statusText}</span>
-          <span class="ping-log-method">${esc(r.method || '')}</span>
-          <span class="ping-log-time">${r.time != null ? esc(r.time + 'ms') : ''}</span>
-        </div>`;
-        log.insertAdjacentHTML('beforeend', line);
-        log.scrollTop = log.scrollHeight;
+          <span class="ping-log-status ${online ? 'online' : 'offline'}">${statusText}</span>
+          <span class="ping-log-method">${esc(method || '')}</span>
+          <span class="ping-log-time">${time != null ? esc(time + 'ms') : ''}</span>
+        </div>`);
       } else {
-        current.textContent = `检测失败 ${entry.ip}`;
-        const errorLine = `<div class="ping-log-item">
+        log.insertAdjacentHTML('beforeend', `<div class="ping-log-item">
           <span class="ping-log-ts">${esc(timestamp)}</span>
           <span class="ping-log-ip">${esc(entry.ip)}</span>
           ${entry.label ? `<span class="ping-log-name">${esc(entry.label)}</span>` : ''}
           <span class="ping-log-status offline">失败</span>
-          <span class="ping-log-method">${esc(r?.error || '未知错误')}</span>
-        </div>`;
-        log.insertAdjacentHTML('beforeend', errorLine);
-        log.scrollTop = log.scrollHeight;
+          <span class="ping-log-method">${esc(errorMsg || '未知错误')}</span>
+        </div>`);
       }
+      log.scrollTop = log.scrollHeight;
+    }
+
+    async function pingOne(entry) {
+      if (state.pingCancel) return;
+      current.textContent = `正在检测 ${entry.ip}${entry.label ? ' · ' + entry.label : ''}…`;
+      const timestamp = new Date().toLocaleTimeString('zh-CN', { hour12: false });
+      let r;
+      try {
+        r = await api('ping_ip', { ip: entry.ip }, 'GET');
+      } catch (e) {
+        done++;
+        doneTxt.textContent = done;
+        fill.style.width = Math.round((done / total) * 100) + '%';
+        addLogEntry(entry, null, undefined, null, null, '请求失败', timestamp);
+        return;
+      }
+      done++;
+      doneTxt.textContent = done;
+      fill.style.width = Math.round((done / total) * 100) + '%';
+      if (r?.success) {
+        const methodLabel = r.method ? ` · ${r.method}` : '';
+        const statusText = r.online ? '在线' : '离线';
+        current.textContent = `已检测 ${entry.ip}：${statusText}${methodLabel}`;
+        addLogEntry(entry, statusText, r.online, r.method, r.time, null, timestamp);
+      } else {
+        current.textContent = `检测失败 ${entry.ip}`;
+        addLogEntry(entry, null, undefined, null, null, r?.error, timestamp);
+      }
+    }
+
+    async function runNext() {
+      while (queue.length > 0 && !state.pingCancel) {
+        while (running.size >= CONCURRENT_PINGS && !state.pingCancel) {
+          await new Promise(resolve => {
+            const check = () => {
+              if (running.size < CONCURRENT_PINGS || state.pingCancel) resolve();
+              else setTimeout(check, 80);
+            };
+            check();
+          });
+        }
+        if (state.pingCancel) break;
+        const entry = queue.shift();
+        if (!entry) break;
+        const p = pingOne(entry).then(() => { running.delete(p); });
+        running.add(p);
+      }
+    }
+
+    await runNext();
+    if (running.size > 0) {
+      await Promise.allSettled(running);
     }
 
     state.pingRunning = false;
@@ -1615,23 +1653,7 @@ const App = (() => {
   }
 
   function renderPMPagination(total) {
-    const pages = Math.max(1, Math.ceil(total / pmState.pageSize));
-    const pag   = document.getElementById('pm-pagination');
-    if (!pag) return;
-    if (pages <= 1) { pag.innerHTML = ''; return; }
-    let html = `<button class="page-btn" ${pmState.page <= 1 ? 'disabled' : ''} data-pp="${pmState.page-1}">‹</button>`;
-    const start = Math.max(1, pmState.page - 2);
-    const end   = Math.min(pages, pmState.page + 2);
-    if (start > 1) html += `<button class="page-btn" data-pp="1">1</button>${start > 2 ? '<span style="color:var(--fg4);padding:0 .25rem">…</span>' : ''}`;
-    for (let i = start; i <= end; i++) {
-      html += `<button class="page-btn ${i === pmState.page ? 'active' : ''}" data-pp="${i}">${i}</button>`;
-    }
-    if (end < pages) html += `${end < pages - 1 ? '<span style="color:var(--fg4);padding:0 .25rem">…</span>' : ''}<button class="page-btn" data-pp="${pages}">${pages}</button>`;
-    html += `<button class="page-btn" ${pmState.page >= pages ? 'disabled' : ''} data-pp="${pmState.page+1}">›</button>`;
-    pag.innerHTML = html;
-    pag.querySelectorAll('.page-btn[data-pp]').forEach(btn => {
-      btn.addEventListener('click', () => { pmState.page = parseInt(btn.dataset.pp); renderPMTable(); });
-    });
+    renderGenericPagination(total, pmState.pageSize, pmState.page, 'pm-pagination', (p) => { pmState.page = p; renderPMTable(); });
   }
 
   function openPMForm(id = null) {

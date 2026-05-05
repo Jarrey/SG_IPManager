@@ -1,14 +1,53 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/config.php';
+
+// ── In-memory cache (per request) ────────────────────────────────────────────
+
+/** @var array<string, array|null> Static cache to avoid re-reading JSON files within the same request. */
+$_DATA_CACHE = [];
+
+function _jsonRead(string $file): ?array {
+    global $_DATA_CACHE;
+    if (array_key_exists($file, $_DATA_CACHE)) {
+        return $_DATA_CACHE[$file];
+    }
+    if (!file_exists($file)) {
+        $_DATA_CACHE[$file] = null;
+        return null;
+    }
+    $raw = file_get_contents($file);
+    if ($raw === false) {
+        $_DATA_CACHE[$file] = null;
+        return null;
+    }
+    $data = json_decode($raw, true);
+    if (!is_array($data)) {
+        $_DATA_CACHE[$file] = null;
+        return null;
+    }
+    $_DATA_CACHE[$file] = $data;
+    return $data;
+}
+
+function _jsonWrite(string $file, array $data): void {
+    global $_DATA_CACHE;
+    _atomicWriteData($file, json_encode(array_values($data), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    $_DATA_CACHE[$file] = $data;
+}
+
+function _cacheClear(string $file): void {
+    global $_DATA_CACHE;
+    unset($_DATA_CACHE[$file]);
+}
 
 // ── Low-level helpers ────────────────────────────────────────────────────────
 
-/** Check if a byte string is valid UTF-8 without requiring the mbstring extension. */
 function _isValidUTF8(string $s): bool {
     return (bool) preg_match('//u', $s);
 }
 
-/** Convert GBK/GB2312 bytes to UTF-8, using iconv when available, else a best-effort strip. */
 function _convertFromGBK(string $s): string {
     if (function_exists('iconv')) {
         $out = @iconv('GBK', 'UTF-8//IGNORE', $s);
@@ -17,7 +56,6 @@ function _convertFromGBK(string $s): string {
     if (function_exists('mb_convert_encoding')) {
         return mb_convert_encoding($s, 'UTF-8', 'GBK');
     }
-    // Last resort: strip non-ASCII bytes so the rest of the CSV can still parse
     return preg_replace('/[\x80-\xFF]/', '?', $s);
 }
 
@@ -30,22 +68,25 @@ function _atomicWriteData(string $file, string $content): void {
 // ── IP records ───────────────────────────────────────────────────────────────
 
 function getIPs(): array {
-    if (!file_exists(IPS_FILE)) {
-        // Auto-import from dhcp_static.csv if present beside this app
-        $csvPath = ROOT_DIR . DIRECTORY_SEPARATOR . 'dhcp_static.csv';
-        if (file_exists($csvPath)) {
-            $ips = parseCSVContent(file_get_contents($csvPath));
+    $data = _jsonRead(IPS_FILE);
+    if ($data !== null) {
+        return $data;
+    }
+    $csvPath = ROOT_DIR . DIRECTORY_SEPARATOR . 'dhcp_static.csv';
+    if (file_exists($csvPath)) {
+        $raw = file_get_contents($csvPath);
+        if ($raw !== false) {
+            $ips = parseCSVContent($raw);
             saveIPs($ips);
             return $ips;
         }
-        saveIPs([]);
-        return [];
     }
-    return json_decode(file_get_contents(IPS_FILE), true) ?: [];
+    saveIPs([]);
+    return [];
 }
 
 function saveIPs(array $ips): void {
-    _atomicWriteData(IPS_FILE, json_encode(array_values($ips), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    _jsonWrite(IPS_FILE, $ips);
 }
 
 function getNextID(array $ips): int {
@@ -125,32 +166,40 @@ function exportToCSV(array $ips): string {
 // ── Settings ─────────────────────────────────────────────────────────────────
 
 function getSettings(): array {
-    if (!file_exists(SETTINGS_FILE)) {
-        $default = [
-            'subnets' => [[
-                'id'          => 1,
-                'name'        => 'LAN',
-                'network'     => '192.168.2.0',
-                'prefix'      => 24,
-                'range_start' => 2,
-                'range_end'   => 254,
-                'gateway'     => '192.168.2.1',
-            ]],
-            'default_gateway'   => '192.168.2.1',
-            'default_interface' => 'lan1',
-            'ping_timeout'      => 1000,
-            'mac_cache_months'  => 6,
-            'docker_host_ranges' => '', // e.g., "192.168.2.6-192.168.2.10" for Docker host IPs
-            'enable_arp'        => false, // ARP probe as first detection step (disable in bridge-mode Docker)
-        ];
-        _atomicWriteData(SETTINGS_FILE, json_encode($default, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-        return $default;
+    $data = _jsonRead(SETTINGS_FILE);
+    if ($data !== null) {
+        return $data;
     }
-    return json_decode(file_get_contents(SETTINGS_FILE), true) ?: [];
+    $default = [
+        'subnets' => [[
+            'id'          => 1,
+            'name'        => 'LAN',
+            'network'     => '192.168.2.0',
+            'prefix'      => 24,
+            'range_start' => 2,
+            'range_end'   => 254,
+            'gateway'     => '192.168.2.1',
+        ]],
+        'default_gateway'   => '192.168.2.1',
+        'default_interface' => 'lan1',
+        'ping_timeout'      => 1000,
+        'mac_cache_months'  => 6,
+        'docker_host_ranges' => '',
+        'enable_arp'        => false,
+    ];
+    _atomicWriteData(SETTINGS_FILE, json_encode($default, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    $_DATA_CACHE[SETTINGS_FILE] = $default;
+    return $default;
 }
 
 function saveSettings(array $settings): void {
-    _atomicWriteData(SETTINGS_FILE, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    global $_DATA_CACHE;
+    $raw = json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    if ($raw === false) {
+        return;
+    }
+    _atomicWriteData(SETTINGS_FILE, $raw);
+    $_DATA_CACHE[SETTINGS_FILE] = $settings;
 }
 
 // ── Subnet helpers ────────────────────────────────────────────────────────────
@@ -178,11 +227,11 @@ function getFreeIPs(array $subnet, array $usedIPs): array {
 // ── Ping cache ────────────────────────────────────────────────────────────────
 
 function getPingCache(): array {
-    if (!file_exists(PING_CACHE_FILE)) return [];
-    return json_decode(file_get_contents(PING_CACHE_FILE), true) ?: [];
+    return _jsonRead(PING_CACHE_FILE) ?? [];
 }
 
 function savePingCache(array $cache): void {
+    _cacheClear(PING_CACHE_FILE);
     _atomicWriteData(PING_CACHE_FILE, json_encode($cache, JSON_PRETTY_PRINT));
 }
 
@@ -201,22 +250,25 @@ function updatePingResult(string $ip, array $result): array {
 // ── Port Mappings ─────────────────────────────────────────────────────────────
 
 function getPortMappings(): array {
-    if (!file_exists(PORT_MAPPINGS_FILE)) {
-        // Auto-import from dst_nat.csv if present beside this app
-        $csvPath = ROOT_DIR . DIRECTORY_SEPARATOR . 'dst_nat.csv';
-        if (file_exists($csvPath)) {
-            $pms = parseNATCSVContent(file_get_contents($csvPath));
+    $data = _jsonRead(PORT_MAPPINGS_FILE);
+    if ($data !== null) {
+        return $data;
+    }
+    $csvPath = ROOT_DIR . DIRECTORY_SEPARATOR . 'dst_nat.csv';
+    if (file_exists($csvPath)) {
+        $raw = file_get_contents($csvPath);
+        if ($raw !== false) {
+            $pms = parseNATCSVContent($raw);
             savePortMappings($pms);
             return $pms;
         }
-        savePortMappings([]);
-        return [];
     }
-    return json_decode(file_get_contents(PORT_MAPPINGS_FILE), true) ?: [];
+    savePortMappings([]);
+    return [];
 }
 
 function savePortMappings(array $pms): void {
-    _atomicWriteData(PORT_MAPPINGS_FILE, json_encode(array_values($pms), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    _jsonWrite(PORT_MAPPINGS_FILE, $pms);
 }
 
 function getNextPortMappingID(array $pms): int {
@@ -303,10 +355,10 @@ function exportNATToCSV(array $pms): string {
 // ── MAC vendor cache ──────────────────────────────────────────────────────────
 
 function getMacVendorCache(): array {
-    if (!file_exists(MAC_VENDOR_CACHE_FILE)) return [];
-    return json_decode(file_get_contents(MAC_VENDOR_CACHE_FILE), true) ?: [];
+    return _jsonRead(MAC_VENDOR_CACHE_FILE) ?? [];
 }
 
 function saveMacVendorCache(array $cache): void {
+    _cacheClear(MAC_VENDOR_CACHE_FILE);
     _atomicWriteData(MAC_VENDOR_CACHE_FILE, json_encode($cache, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 }

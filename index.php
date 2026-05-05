@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 session_start();
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth.php';
@@ -24,6 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $user = authenticateUser($username, $password);
             if ($user) {
+                session_regenerate_id(true);
                 $_SESSION['user'] = $user['username'];
                 generateCSRF();
                 updateUserLastLogin($username);

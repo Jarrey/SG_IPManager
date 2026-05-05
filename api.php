@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 // Prevent PHP warnings/notices from corrupting JSON output
 ini_set('display_errors', '0');
 error_reporting(E_ERROR | E_PARSE);
