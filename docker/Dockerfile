@@ -4,7 +4,7 @@ ARG TZ=Asia/Shanghai
 ENV TZ=${TZ}
 
 RUN apk add --no-cache nginx iputils tzdata \
- && mkdir -p /var/www/html/data /run/nginx /host_proc/net
+ && mkdir -p /var/www/html/data /run/nginx
 
 COPY docker/start.sh /usr/local/bin/start.sh
 COPY docker/.env.sample /var/www/html/.env.sample

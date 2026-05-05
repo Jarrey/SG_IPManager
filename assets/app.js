@@ -265,6 +265,7 @@ const App = (() => {
     if (name === 'overview')  loadStats();
     if (name === 'iplist')    loadIPs();
     if (name === 'subnet')    loadSubnets();
+    if (name === 'portmap')   loadPortMaps();
     if (name === 'settings')  loadSettings();
   }
 
@@ -307,6 +308,9 @@ const App = (() => {
     document.getElementById('st-unchecked').textContent = r.stats.unchecked;
     document.getElementById('st-disabled').textContent  = r.stats.disabled;
     document.getElementById('last-update-time').textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
+
+    // Port mapping stats
+    loadPortMapStats();
 
     if (ipsResp?.success) {
       if (ipsResp.vendor_cache && typeof ipsResp.vendor_cache === 'object') {
@@ -396,6 +400,7 @@ const App = (() => {
       else if (action === 'filter-online')  { state.filterStatus = 'online';  showPage('iplist'); }
       else if (action === 'filter-offline') { state.filterStatus = 'offline'; showPage('iplist'); }
       else if (action === 'show-free') showPage('subnet');
+      else if (action === 'goto-portmap') showPage('portmap');
     });
   });
 
@@ -1480,6 +1485,331 @@ const App = (() => {
     if (relogin) setTimeout(() => { window.location.href = 'logout.php'; }, 1500);
   });
 
+  // ── Port Mapping ──────────────────────────────────────────────────────────
+  let pmState = {
+    all:         [],
+    filtered:    [],
+    page:        1,
+    pageSize:    50,
+    search:      '',
+    filterEnabled: '',
+    filterProto:   '',
+  };
+
+  function pmFilterAndRender() {
+    let list = pmState.all;
+    const q  = pmState.search.toLowerCase();
+    if (q) {
+      list = list.filter(p =>
+        (p.comment  || '').toLowerCase().includes(q) ||
+        (p.lan_addr || '').toLowerCase().includes(q) ||
+        (p.wan_port || '').toLowerCase().includes(q) ||
+        (p.lan_port || '').toLowerCase().includes(q) ||
+        (p.src_addr || '').toLowerCase().includes(q)
+      );
+    }
+    if (pmState.filterEnabled === 'yes') list = list.filter(p => p.enabled === 'yes');
+    if (pmState.filterEnabled === 'no')  list = list.filter(p => p.enabled !== 'yes');
+    if (pmState.filterProto) list = list.filter(p => p.protocol === pmState.filterProto);
+    pmState.filtered = list;
+    renderPMTable();
+  }
+
+  async function loadPortMaps() {
+    const r = await api('get_portmaps');
+    if (!r?.success) return;
+    pmState.all  = r.data;
+    pmState.page = 1;
+    pmFilterAndRender();
+  }
+
+  function renderPMTable() {
+    const tbody = document.getElementById('pm-tbody');
+    const empty = document.getElementById('pm-table-empty');
+    const total = pmState.filtered.length;
+    const start = (pmState.page - 1) * pmState.pageSize;
+    const slice = pmState.filtered.slice(start, start + pmState.pageSize);
+
+    if (total === 0) {
+      tbody.innerHTML = '';
+      empty.classList.remove('hidden');
+    } else {
+      empty.classList.add('hidden');
+      tbody.innerHTML = slice.map(pm => renderPMRow(pm)).join('');
+    }
+    document.getElementById('pm-table-count').textContent = `共 ${total} 条映射`;
+    renderPMPagination(total);
+
+    // Bind actions
+    tbody.querySelectorAll('[data-pm-action]').forEach(btn => {
+      btn.addEventListener('click', handlePMAction);
+    });
+    tbody.querySelectorAll('.pm-toggle input').forEach(tog => {
+      tog.addEventListener('change', async function () {
+        const id = parseInt(this.closest('tr').dataset.pmId);
+        const r  = await api('toggle_portmap', { id }, 'POST');
+        if (r?.success) { toast('状态已更新', 'success'); loadPortMaps(); loadPortMapStats(); }
+        else toast(r?.error || '操作失败', 'error');
+      });
+    });
+  }
+
+  const PROTO_BADGE = {
+    'tcp':     '<span class="proto-badge proto-tcp">TCP</span>',
+    'udp':     '<span class="proto-badge proto-udp">UDP</span>',
+    'tcp+udp': '<span class="proto-badge proto-both">TCP+UDP</span>',
+  };
+
+  function renderPMRow(pm) {
+    const proto = PROTO_BADGE[pm.protocol] || esc(pm.protocol || '');
+    const disabled = pm.enabled === 'no' ? ' disabled-row' : '';
+    const srcLabel = pm.src_addr ? `<small style="color:var(--fg3)">${esc(pm.src_addr)}</small>` : '<small style="color:var(--fg4)">不限</small>';
+    return `
+<tr data-pm-id="${pm.id}" class="${disabled}">
+  <td class="col-pm-ena">
+    <label class="toggle pm-toggle toggle-wrap">
+      <input type="checkbox" ${pm.enabled === 'yes' ? 'checked' : ''}>
+      <span class="toggle-slider"></span>
+    </label>
+  </td>
+  <td class="col-pm-comment">${esc(pm.comment || '—')}</td>
+  <td class="col-pm-proto">${proto}</td>
+  <td class="col-pm-iface">${esc(pm.interface || '')}</td>
+  <td class="col-pm-wan"><code>${esc(pm.wan_port || '')}</code></td>
+  <td class="col-pm-lan"><code>${esc(pm.lan_addr || '')}:${esc(pm.lan_port || '')}</code></td>
+  <td class="col-pm-src">${srcLabel}</td>
+  <td class="col-pm-actions">
+    <button class="btn btn-ghost btn-xs" data-pm-action="edit" data-pm-id="${pm.id}" title="编辑">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+    </button>
+    <button class="btn btn-ghost btn-xs" data-pm-action="delete" data-pm-id="${pm.id}" title="删除" style="color:var(--red)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg>
+    </button>
+  </td>
+</tr>`;
+  }
+
+  async function handlePMAction(e) {
+    const btn    = e.currentTarget;
+    const action = btn.dataset.pmAction;
+    const id     = parseInt(btn.dataset.pmId);
+    if (action === 'edit') {
+      openPMForm(id);
+    } else if (action === 'delete') {
+      const pm   = pmState.all.find(p => p.id === id);
+      const label= pm?.comment || pm?.wan_port || String(id);
+      const ok   = await confirm('删除确认', `确定要删除映射「${label}」吗？`);
+      if (!ok) return;
+      const r = await api('delete_portmap', { id }, 'POST');
+      if (r?.success) { toast('已删除', 'success'); loadPortMaps(); loadPortMapStats(); }
+      else toast(r?.error || '删除失败', 'error');
+    }
+  }
+
+  function renderPMPagination(total) {
+    const pages = Math.max(1, Math.ceil(total / pmState.pageSize));
+    const pag   = document.getElementById('pm-pagination');
+    if (!pag) return;
+    if (pages <= 1) { pag.innerHTML = ''; return; }
+    let html = `<button class="page-btn" ${pmState.page <= 1 ? 'disabled' : ''} data-pp="${pmState.page-1}">‹</button>`;
+    const start = Math.max(1, pmState.page - 2);
+    const end   = Math.min(pages, pmState.page + 2);
+    if (start > 1) html += `<button class="page-btn" data-pp="1">1</button>${start > 2 ? '<span style="color:var(--fg4);padding:0 .25rem">…</span>' : ''}`;
+    for (let i = start; i <= end; i++) {
+      html += `<button class="page-btn ${i === pmState.page ? 'active' : ''}" data-pp="${i}">${i}</button>`;
+    }
+    if (end < pages) html += `${end < pages - 1 ? '<span style="color:var(--fg4);padding:0 .25rem">…</span>' : ''}<button class="page-btn" data-pp="${pages}">${pages}</button>`;
+    html += `<button class="page-btn" ${pmState.page >= pages ? 'disabled' : ''} data-pp="${pmState.page+1}">›</button>`;
+    pag.innerHTML = html;
+    pag.querySelectorAll('.page-btn[data-pp]').forEach(btn => {
+      btn.addEventListener('click', () => { pmState.page = parseInt(btn.dataset.pp); renderPMTable(); });
+    });
+  }
+
+  function openPMForm(id = null) {
+    const title = document.getElementById('modal-pm-title');
+    if (id) {
+      const pm = pmState.all.find(p => p.id === id);
+      if (!pm) return;
+      title.textContent = '编辑端口映射';
+      document.getElementById('pm-form-id').value        = pm.id;
+      document.getElementById('pm-form-comment').value   = pm.comment  || '';
+      document.getElementById('pm-form-iface').value     = pm.interface|| 'wan1';
+      document.getElementById('pm-form-proto').value     = pm.protocol || 'tcp+udp';
+      document.getElementById('pm-form-lan-addr').value  = pm.lan_addr || '';
+      document.getElementById('pm-form-wan-port').value  = pm.wan_port || '';
+      document.getElementById('pm-form-lan-port').value  = pm.lan_port || '';
+      document.getElementById('pm-form-src-addr').value  = pm.src_addr || '';
+      document.getElementById('pm-form-enabled').checked = pm.enabled === 'yes';
+    } else {
+      title.textContent = '新增端口映射';
+      document.getElementById('pm-form-id').value        = '';
+      document.getElementById('pm-form-comment').value   = '';
+      document.getElementById('pm-form-iface').value     = 'wan1';
+      document.getElementById('pm-form-proto').value     = 'tcp+udp';
+      document.getElementById('pm-form-lan-addr').value  = '';
+      document.getElementById('pm-form-wan-port').value  = '';
+      document.getElementById('pm-form-lan-port').value  = '';
+      document.getElementById('pm-form-src-addr').value  = '';
+      document.getElementById('pm-form-enabled').checked = true;
+    }
+    openModal('modal-portmap');
+    setTimeout(() => document.getElementById('pm-form-comment').focus(), 100);
+  }
+
+  document.getElementById('btn-add-portmap')?.addEventListener('click', () => openPMForm());
+
+  document.getElementById('btn-save-portmap')?.addEventListener('click', async () => {
+    const id = document.getElementById('pm-form-id').value;
+    const payload = {
+      comment:   document.getElementById('pm-form-comment').value.trim(),
+      interface: document.getElementById('pm-form-iface').value.trim() || 'wan1',
+      protocol:  document.getElementById('pm-form-proto').value,
+      lan_addr:  document.getElementById('pm-form-lan-addr').value.trim(),
+      wan_port:  document.getElementById('pm-form-wan-port').value.trim(),
+      lan_port:  document.getElementById('pm-form-lan-port').value.trim(),
+      src_addr:  document.getElementById('pm-form-src-addr').value.trim(),
+      enabled:   document.getElementById('pm-form-enabled').checked ? 'yes' : 'no',
+    };
+    if (id) payload.id = id;
+    const action = id ? 'update_portmap' : 'add_portmap';
+    const r = await api(action, payload, 'POST');
+    if (r?.success) {
+      toast(id ? '保存成功' : '添加成功', 'success');
+      closeModal('modal-portmap');
+      loadPortMaps();
+      loadPortMapStats();
+    } else toast(r?.error || '保存失败', 'error');
+  });
+
+  // PM filter/search bindings
+  document.getElementById('pm-filter-enabled')?.addEventListener('change', e => {
+    pmState.filterEnabled = e.target.value; pmState.page = 1; pmFilterAndRender();
+  });
+  document.getElementById('pm-filter-proto')?.addEventListener('change', e => {
+    pmState.filterProto = e.target.value; pmState.page = 1; pmFilterAndRender();
+  });
+  let pmSearchTimer;
+  document.getElementById('pm-search')?.addEventListener('input', e => {
+    clearTimeout(pmSearchTimer);
+    pmSearchTimer = setTimeout(() => { pmState.search = e.target.value; pmState.page = 1; pmFilterAndRender(); }, 250);
+  });
+
+  async function loadPortMapStats() {
+    const r = await api('get_portmap_stats');
+    if (!r?.success) return;
+    const el = document.getElementById('st-portmap');
+    if (el) el.textContent = r.stats.total;
+    // Overview portmap card
+    renderPortMapOverview();
+  }
+
+  async function renderPortMapOverview() {
+    const r = await api('get_portmaps');
+    if (!r?.success) return;
+    const list = document.getElementById('portmap-overview-list');
+    if (!list) return;
+    const enabled = r.data.filter(p => p.enabled === 'yes').slice(0, 8);
+    if (!enabled.length) {
+      list.innerHTML = '<div class="empty-hint">暂无已启用的端口映射</div>';
+      return;
+    }
+    list.innerHTML = enabled.map(pm => {
+      const proto = pm.protocol || '';
+      const dot = proto === 'tcp' ? 'var(--accent)' : proto === 'udp' ? 'var(--amber)' : 'var(--purple)';
+      return `<div class="overview-item" style="cursor:pointer" onclick="App.showPage('portmap')">
+        <span class="overview-dot" style="background:${dot}"></span>
+        <span class="overview-item-name">${esc(pm.comment || pm.wan_port)}</span>
+        <span class="overview-item-count" style="font-size:.78rem;color:var(--fg3);font-weight:400">${esc(pm.wan_port)} → ${esc(pm.lan_addr)}:${esc(pm.lan_port)}</span>
+      </div>`;
+    }).join('') + (r.data.filter(p => p.enabled === 'yes').length > 8 ? `<div class="overview-item"><span style="color:var(--fg4);font-size:.8rem">还有 ${r.data.filter(p=>p.enabled==='yes').length - 8} 条…</span></div>` : '');
+  }
+
+  // ── NAT Import / Export IO ─────────────────────────────────────────────────
+  let natImportContent = '';
+  let natImportFile    = null;
+
+  function setupNATIO() {
+    const dz   = document.getElementById('nat-drop-zone');
+    const file = document.getElementById('nat-import-file');
+    if (!dz) return;
+
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+    dz.addEventListener('drop', e => {
+      e.preventDefault();
+      dz.classList.remove('drag-over');
+      const f = e.dataTransfer.files[0];
+      if (f) readNATImportFile(f);
+    });
+    file.addEventListener('change', () => { if (file.files[0]) readNATImportFile(file.files[0]); });
+
+    document.getElementById('btn-nat-confirm-import')?.addEventListener('click', doNATImport);
+    document.getElementById('btn-nat-cancel-import')?.addEventListener('click', () => {
+      document.getElementById('nat-import-preview').classList.add('hidden');
+      natImportContent = '';
+      natImportFile    = null;
+    });
+
+    document.getElementById('btn-nat-export')?.addEventListener('click', () => {
+      const scope = document.getElementById('nat-export-scope')?.value;
+      const url   = `api.php?action=export_nat_csv${scope === 'enabled' ? '&enabled_only=1' : ''}`;
+      window.location.href = url;
+    });
+  }
+
+  function readNATImportFile(file) {
+    natImportFile = file;
+    const reader  = new FileReader();
+    reader.onload = e => {
+      natImportContent = detectAndDecodeBuffer(e.target.result);
+      previewNATCSV(natImportContent);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function previewNATCSV(content) {
+    const lines   = content.split(/\r?\n/).filter(l => l.trim());
+    const headers = lines[0] ? parseCSVLine(lines[0]) : [];
+    const rows    = lines.slice(1, 6);
+
+    const thead = document.getElementById('nat-preview-thead');
+    const tbody = document.getElementById('nat-preview-tbody');
+    const info  = document.getElementById('nat-preview-info');
+    const wrap  = document.getElementById('nat-import-preview');
+
+    thead.innerHTML = headers.map(h => `<th>${esc(h)}</th>`).join('');
+    tbody.innerHTML = rows.map(line => {
+      const cols = parseCSVLine(line);
+      return `<tr>${headers.map((_, i) => `<td>${esc(decodeURIComponent((cols[i]||'').replace(/\+/g,' ')))}</td>`).join('')}</tr>`;
+    }).join('');
+    info.textContent = `共检测到 ${lines.length - 1} 条记录（预览前 5 条）`;
+    wrap.classList.remove('hidden');
+  }
+
+  async function doNATImport() {
+    if (!natImportFile && !natImportContent) return;
+    const mode = document.getElementById('nat-import-mode').value;
+    const fd   = new FormData();
+    fd.append('csrf', cfg.csrf);
+    fd.append('mode', mode);
+    if (natImportFile) {
+      fd.append('csv_file', natImportFile, natImportFile.name);
+    } else {
+      fd.append('csv_content', natImportContent);
+    }
+    const res = await fetch('api.php?action=import_nat_csv', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
+    const r   = await res.json();
+    if (r.success) {
+      toast(`端口映射导入成功：新增 ${r.added}，更新 ${r.updated}`, 'success');
+      document.getElementById('nat-import-preview').classList.add('hidden');
+      natImportContent = '';
+      natImportFile    = null;
+      loadPortMaps();
+      loadPortMapStats();
+    } else toast(r.error || '导入失败', 'error');
+  }
+
   // ── Interface filter update ───────────────────────────────────────────────
   async function updateIfaceFilter() {
     const r = await api('get_stats');
@@ -1510,6 +1840,7 @@ const App = (() => {
 
   function init() {
     setupIO();
+    setupNATIO();
     showPage('overview');
     updateIfaceFilter();
   }

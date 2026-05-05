@@ -8,6 +8,7 @@ define('IPS_FILE',      DATA_DIR . 'ips.json');
 define('SETTINGS_FILE', DATA_DIR . 'settings.json');
 define('PING_CACHE_FILE',       DATA_DIR . 'ping_cache.json');
 define('MAC_VENDOR_CACHE_FILE', DATA_DIR . 'mac_vendor_cache.json');
+define('PORT_MAPPINGS_FILE',    DATA_DIR . 'port_mappings.json');
 
 define('APP_NAME',    '索格 IPManager');
 define('APP_VERSION', '1.0.0');

@@ -57,6 +57,12 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       </svg>
       <span>网段视图</span>
     </a>
+    <a href="#" class="nav-item" data-page="portmap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M17 7l-10 10M7 7h10v10"/>
+      </svg>
+      <span>端口映射</span>
+    </a>
     <a href="#" class="nav-item" data-page="io">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -174,9 +180,21 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
           </div>
           <div class="stat-body"><div class="stat-value" id="st-disabled">—</div><div class="stat-label">已禁用</div></div>
         </div>
+        <div class="stat-card" data-action="goto-portmap">
+          <div class="stat-icon stat-purple">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 7l-10 10M7 7h10v10"/></svg>
+          </div>
+          <div class="stat-body"><div class="stat-value" id="st-portmap">—</div><div class="stat-label">端口映射</div></div>
+        </div>
       </div>
 
       <div class="overview-extra-grid">
+        <div class="overview-card">
+          <div class="overview-card-header">端口映射概览 <a href="#" class="overview-link" onclick="App.showPage('portmap');return false;">查看全部 →</a></div>
+          <div id="portmap-overview-list" class="overview-list">
+            <div class="empty-hint">正在加载端口映射…</div>
+          </div>
+        </div>
         <div class="overview-card">
           <div class="overview-card-header">设备类别分布</div>
           <div id="device-category-list" class="overview-list">
@@ -266,9 +284,64 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
       <div id="subnet-panels"></div>
     </section>
 
+    <!-- ── Port Mapping ───────────────────────────────────────────────── -->
+    <section id="page-portmap" class="page">
+      <div class="page-title">
+        <h1>端口映射</h1>
+        <div class="page-actions">
+          <button id="btn-add-portmap" class="btn btn-sm btn-primary" title="新增端口映射">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span class="btn-label">新增映射</span>
+          </button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select id="pm-filter-enabled" class="select-sm">
+          <option value="">全部状态</option>
+          <option value="yes">已启用</option>
+          <option value="no">已禁用</option>
+        </select>
+        <select id="pm-filter-proto" class="select-sm">
+          <option value="">全部协议</option>
+          <option value="tcp">TCP</option>
+          <option value="udp">UDP</option>
+          <option value="tcp+udp">TCP+UDP</option>
+        </select>
+        <input type="text" id="pm-search" class="select-sm" style="flex:2;min-width:160px" placeholder="搜索备注、IP、端口…">
+      </div>
+      <div class="table-wrap">
+        <table id="pm-table">
+          <thead>
+            <tr>
+              <th class="col-pm-ena">启用</th>
+              <th class="col-pm-comment">备 注</th>
+              <th class="col-pm-proto">协 议</th>
+              <th class="col-pm-iface">接 口</th>
+              <th class="col-pm-wan">外网端口</th>
+              <th class="col-pm-lan">内网地址:端口</th>
+              <th class="col-pm-src">来源限制</th>
+              <th class="col-pm-actions">操 作</th>
+            </tr>
+          </thead>
+          <tbody id="pm-tbody"></tbody>
+        </table>
+        <div id="pm-table-empty" class="empty-hint hidden">没有找到匹配的映射记录</div>
+      </div>
+      <div id="pm-table-footer" class="table-footer">
+        <span id="pm-table-count"></span>
+        <div class="pagination" id="pm-pagination"></div>
+      </div>
+    </section>
+
     <!-- ── Import / Export ───────────────────────────────────────────── -->
     <section id="page-io" class="page">
       <div class="page-title"><h1>导入 / 导出</h1></div>
+
+      <!-- IP section header -->
+      <div class="io-section-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        IP / DHCP 静态绑定（dhcp_static.csv · RouterOS / Mikrotik / 爱快）
+      </div>
       <div class="io-grid">
         <!-- Import -->
         <div class="card">
@@ -332,6 +405,75 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
             <div class="divider"></div>
             <p class="hint-text">也可直接复制 CSV 内容：</p>
             <button id="btn-copy-csv" class="btn btn-outline" style="width:100%">复制 CSV 内容到剪贴板</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Port Mapping section header -->
+      <div class="io-section-header" style="margin-top:1.75rem">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 7l-10 10M7 7h10v10"/></svg>
+        端口映射（dst_nat.csv · 爱快 iKuai 系统端口映射导出格式）
+      </div>
+      <div class="io-grid">
+        <!-- NAT Import -->
+        <div class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            导入端口映射 CSV
+          </div>
+          <div class="card-body">
+            <p class="hint-text">兼容 <strong>爱快 iKuai</strong> 系统导出的 <code>dst_nat.csv</code> 格式。<br>字段：id, enabled, comment, interface, src_addr, lan_addr, protocol, wan_port, lan_port。<br>支持 UTF-8 / GBK 编码自动检测。</p>
+            <div class="form-group">
+              <label>导入模式</label>
+              <select id="nat-import-mode" class="select-full">
+                <option value="merge">智能合并（按 接口+WAN端口 去重，更新已有）</option>
+                <option value="append">追加（保留全部现有，全部新增）</option>
+                <option value="replace">替换（清空现有，全部导入）</option>
+              </select>
+            </div>
+            <div class="drop-zone" id="nat-drop-zone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <span>拖拽 dst_nat.csv 文件到此，或</span>
+              <label class="btn btn-sm btn-outline" style="cursor:pointer">
+                选择文件
+                <input type="file" id="nat-import-file" accept=".csv,.txt" style="display:none">
+              </label>
+            </div>
+            <div id="nat-import-preview" class="hidden">
+              <div class="preview-info" id="nat-preview-info"></div>
+              <div class="table-wrap preview-table-wrap">
+                <table id="nat-preview-table">
+                  <thead><tr id="nat-preview-thead"></tr></thead>
+                  <tbody id="nat-preview-tbody"></tbody>
+                </table>
+              </div>
+              <div class="form-actions">
+                <button id="btn-nat-confirm-import" class="btn btn-primary">确认导入</button>
+                <button id="btn-nat-cancel-import" class="btn btn-outline">取 消</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- NAT Export -->
+        <div class="card">
+          <div class="card-header">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            导出端口映射 CSV
+          </div>
+          <div class="card-body">
+            <p class="hint-text">导出为标准 <code>dst_nat.csv</code> 格式，可直接导入到 <strong>爱快 iKuai</strong> 系统的「目标 NAT / 端口映射」功能。</p>
+            <div class="form-group">
+              <label>导出范围</label>
+              <select id="nat-export-scope" class="select-full">
+                <option value="all">全部映射</option>
+                <option value="enabled">仅已启用</option>
+              </select>
+            </div>
+            <button id="btn-nat-export" class="btn btn-primary" style="width:100%">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1rem;height:1rem"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              下载 dst_nat.csv
+            </button>
           </div>
         </div>
       </div>
@@ -443,9 +585,66 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
 
 <!-- ═══════════ MODALS ═════════════════════════════════════════════════════ -->
 
-<!-- IP Form Modal -->
-<div id="modal-ip" class="modal-overlay" role="dialog" aria-modal="true">
+<!-- Port Mapping Form Modal -->
+<div id="modal-portmap" class="modal-overlay" role="dialog" aria-modal="true">
   <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-pm-title">新增端口映射</h3>
+      <button class="modal-close icon-btn" data-close="modal-portmap">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pm-form-id">
+      <div class="form-row">
+        <div class="form-group">
+          <label>备 注</label>
+          <input type="text" id="pm-form-comment" class="input-full" placeholder="用途说明，如 qBT、Nginx">
+        </div>
+        <div class="form-group">
+          <label>外网接口</label>
+          <input type="text" id="pm-form-iface" class="input-full" placeholder="wan1">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>协 议</label>
+          <select id="pm-form-proto" class="input-full">
+            <option value="tcp+udp">TCP+UDP</option>
+            <option value="tcp">TCP</option>
+            <option value="udp">UDP</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>内网 IP *</label>
+          <input type="text" id="pm-form-lan-addr" class="input-full" placeholder="192.168.2.10">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>外网端口 * <small style="color:var(--fg4)">（WAN）</small></label>
+          <input type="text" id="pm-form-wan-port" class="input-full" placeholder="8080 或 8080,8443">
+        </div>
+        <div class="form-group">
+          <label>内网端口 * <small style="color:var(--fg4)">（LAN）</small></label>
+          <input type="text" id="pm-form-lan-port" class="input-full" placeholder="80 或 80,443">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>来源限制 <small style="color:var(--fg4)">（可选，留空表示不限制来源）</small></label>
+        <input type="text" id="pm-form-src-addr" class="input-full" placeholder="如 192.168.1.0/24 或多个以逗号分隔">
+      </div>
+      <div class="form-group form-inline">
+        <label><input type="checkbox" id="pm-form-enabled" checked> 启用此映射</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" data-close="modal-portmap">取 消</button>
+      <button id="btn-save-portmap" class="btn btn-primary">保 存</button>
+    </div>
+  </div>
+</div>
+
+<!-- IP Form Modal -->
+<div id="modal-ip" class="modal-overlay" role="dialog" aria-modal="true">  <div class="modal">
     <div class="modal-header">
       <h3 id="modal-ip-title">添加 IP</h3>
       <button class="modal-close icon-btn" data-close="modal-ip">✕</button>

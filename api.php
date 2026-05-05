@@ -584,6 +584,210 @@ switch ($action) {
         $out = ['success' => true, 'vendor' => $vendor, 'oui' => $oui, 'cached' => false];
         break;
     }
+
+    // ── Port Mapping: list ──────────────────────────────────────────────────
+    case 'get_portmaps': {
+        $pms = getPortMappings();
+
+        $q      = strtolower(trim($_GET['q'] ?? ''));
+        $fEn    = $_GET['enabled']  ?? '';
+        $fProto = $_GET['protocol'] ?? '';
+
+        if ($q !== '') {
+            $pms = array_filter($pms, function($pm) use ($q) {
+                return str_contains(strtolower($pm['comment']  ?? ''), $q)
+                    || str_contains(strtolower($pm['lan_addr'] ?? ''), $q)
+                    || str_contains(strtolower($pm['wan_port'] ?? ''), $q)
+                    || str_contains(strtolower($pm['lan_port'] ?? ''), $q)
+                    || str_contains(strtolower($pm['src_addr'] ?? ''), $q);
+            });
+        }
+        if ($fEn === 'yes') $pms = array_filter($pms, fn($p) => ($p['enabled'] ?? '') === 'yes');
+        if ($fEn === 'no')  $pms = array_filter($pms, fn($p) => ($p['enabled'] ?? '') !== 'yes');
+        if ($fProto) $pms = array_filter($pms, fn($p) => ($p['protocol'] ?? '') === $fProto);
+
+        $out = ['success' => true, 'data' => array_values($pms), 'total' => count($pms)];
+        break;
+    }
+
+    // ── Port Mapping: stats ─────────────────────────────────────────────────
+    case 'get_portmap_stats': {
+        $pms     = getPortMappings();
+        $total   = count($pms);
+        $enabled = count(array_filter($pms, fn($p) => ($p['enabled'] ?? '') === 'yes'));
+        $out = ['success' => true, 'stats' => [
+            'total'    => $total,
+            'enabled'  => $enabled,
+            'disabled' => $total - $enabled,
+        ]];
+        break;
+    }
+
+    // ── Port Mapping: add ───────────────────────────────────────────────────
+    case 'add_portmap': {
+        if ($method !== 'POST') { http_response_code(405); break; }
+        $d   = $_POST;
+        $pms = getPortMappings();
+
+        $lanAddr = filter_var(trim($d['lan_addr'] ?? ''), FILTER_VALIDATE_IP);
+        if (!$lanAddr) { $out = ['success' => false, 'error' => '无效的内网 IP 地址']; break; }
+
+        $wanPort = trim($d['wan_port'] ?? '');
+        $lanPort = trim($d['lan_port'] ?? '');
+        if ($wanPort === '' || $lanPort === '') {
+            $out = ['success' => false, 'error' => 'WAN 端口和 LAN 端口不能为空']; break;
+        }
+
+        $new = [
+            'id'        => getNextPortMappingID($pms),
+            'enabled'   => ($d['enabled'] ?? '') === 'yes' ? 'yes' : 'no',
+            'comment'   => htmlspecialchars(strip_tags($d['comment'] ?? ''), ENT_QUOTES),
+            'interface' => htmlspecialchars(strip_tags($d['interface'] ?? 'wan1'), ENT_QUOTES),
+            'src_addr'  => htmlspecialchars(strip_tags($d['src_addr'] ?? ''), ENT_QUOTES),
+            'lan_addr'  => $lanAddr,
+            'protocol'  => in_array($d['protocol'] ?? '', ['tcp','udp','tcp+udp']) ? $d['protocol'] : 'tcp+udp',
+            'wan_port'  => preg_replace('/[^0-9,\-]/', '', $wanPort),
+            'lan_port'  => preg_replace('/[^0-9,\-]/', '', $lanPort),
+        ];
+        $pms[] = $new;
+        savePortMappings($pms);
+        $out = ['success' => true, 'portmap' => $new];
+        break;
+    }
+
+    // ── Port Mapping: update ────────────────────────────────────────────────
+    case 'update_portmap': {
+        if ($method !== 'POST') { http_response_code(405); break; }
+        $d    = $_POST;
+        $id   = (int)($d['id'] ?? 0);
+        $pms  = getPortMappings();
+
+        $lanAddr = filter_var(trim($d['lan_addr'] ?? ''), FILTER_VALIDATE_IP);
+        if (!$lanAddr) { $out = ['success' => false, 'error' => '无效的内网 IP 地址']; break; }
+
+        $wanPort = trim($d['wan_port'] ?? '');
+        $lanPort = trim($d['lan_port'] ?? '');
+        if ($wanPort === '' || $lanPort === '') {
+            $out = ['success' => false, 'error' => 'WAN 端口和 LAN 端口不能为空']; break;
+        }
+
+        $found = false;
+        foreach ($pms as &$pm) {
+            if ((int)$pm['id'] !== $id) continue;
+            $pm['enabled']   = ($d['enabled'] ?? '') === 'yes' ? 'yes' : 'no';
+            $pm['comment']   = htmlspecialchars(strip_tags($d['comment'] ?? $pm['comment']), ENT_QUOTES);
+            $pm['interface'] = htmlspecialchars(strip_tags($d['interface'] ?? $pm['interface']), ENT_QUOTES);
+            $pm['src_addr']  = htmlspecialchars(strip_tags($d['src_addr'] ?? $pm['src_addr']), ENT_QUOTES);
+            $pm['lan_addr']  = $lanAddr;
+            $pm['protocol']  = in_array($d['protocol'] ?? '', ['tcp','udp','tcp+udp']) ? $d['protocol'] : $pm['protocol'];
+            $pm['wan_port']  = preg_replace('/[^0-9,\-]/', '', $wanPort);
+            $pm['lan_port']  = preg_replace('/[^0-9,\-]/', '', $lanPort);
+            $found = true;
+            $out   = ['success' => true, 'portmap' => $pm];
+            break;
+        }
+        unset($pm);
+        if (!$found) { $out = ['success' => false, 'error' => '记录不存在']; break; }
+        savePortMappings($pms);
+        break;
+    }
+
+    // ── Port Mapping: delete ────────────────────────────────────────────────
+    case 'delete_portmap': {
+        if ($method !== 'POST') { http_response_code(405); break; }
+        $id  = (int)($_POST['id'] ?? 0);
+        $pms = array_filter(getPortMappings(), fn($p) => (int)$p['id'] !== $id);
+        savePortMappings($pms);
+        $out = ['success' => true];
+        break;
+    }
+
+    // ── Port Mapping: toggle enabled ────────────────────────────────────────
+    case 'toggle_portmap': {
+        if ($method !== 'POST') { http_response_code(405); break; }
+        $id  = (int)($_POST['id'] ?? 0);
+        $pms = getPortMappings();
+        foreach ($pms as &$pm) {
+            if ((int)$pm['id'] === $id) {
+                $pm['enabled'] = $pm['enabled'] === 'yes' ? 'no' : 'yes';
+                $out = ['success' => true, 'enabled' => $pm['enabled']];
+                break;
+            }
+        }
+        unset($pm);
+        savePortMappings($pms);
+        break;
+    }
+
+    // ── Port Mapping: import dst_nat.csv ────────────────────────────────────
+    case 'import_nat_csv': {
+        if ($method !== 'POST') { http_response_code(405); break; }
+        $mode    = in_array($_POST['mode'] ?? '', ['merge','append','replace']) ? $_POST['mode'] : 'merge';
+        $content = '';
+        if (!empty($_FILES['csv_file']) && $_FILES['csv_file']['error'] === UPLOAD_ERR_OK) {
+            $content = file_get_contents($_FILES['csv_file']['tmp_name']);
+        } elseif (!empty($_POST['csv_content'])) {
+            $content = $_POST['csv_content'];
+        } else {
+            $out = ['success' => false, 'error' => '未提供 CSV 内容']; break;
+        }
+        $newPMs = parseNATCSVContent($content);
+        if (empty($newPMs)) { $out = ['success' => false, 'error' => 'CSV 中未找到有效端口映射数据']; break; }
+
+        if ($mode === 'replace') {
+            savePortMappings($newPMs);
+            $out = ['success' => true, 'imported' => count($newPMs), 'added' => count($newPMs), 'updated' => 0];
+        } elseif ($mode === 'append') {
+            $existing = getPortMappings();
+            $maxId    = empty($existing) ? 0 : (int)max(array_column($existing, 'id'));
+            foreach ($newPMs as &$pm) { $pm['id'] = ++$maxId; }
+            unset($pm);
+            savePortMappings(array_merge($existing, $newPMs));
+            $out = ['success' => true, 'imported' => count($newPMs), 'added' => count($newPMs), 'updated' => 0];
+        } else { // merge: key by wan_port+interface
+            $existing = getPortMappings();
+            $byKey = [];
+            foreach ($existing as $pm) {
+                $key = ($pm['interface'] ?? '') . ':' . ($pm['wan_port'] ?? '');
+                $byKey[$key] = $pm;
+            }
+            $added = $updated = 0;
+            foreach ($newPMs as $n) {
+                $key = ($n['interface'] ?? '') . ':' . ($n['wan_port'] ?? '');
+                if (isset($byKey[$key])) {
+                    $byKey[$key] = array_merge($byKey[$key], array_intersect_key($n, array_flip(['enabled','comment','src_addr','lan_addr','protocol','wan_port','lan_port','interface'])));
+                    $updated++;
+                } else {
+                    $byKey[$key] = $n; $added++;
+                }
+            }
+            $maxId  = 0;
+            $merged = [];
+            foreach ($byKey as $pm) {
+                if (!empty($pm['id'])) $maxId = max($maxId, (int)$pm['id']);
+                $merged[] = $pm;
+            }
+            foreach ($merged as &$pm) { if (empty($pm['id'])) $pm['id'] = ++$maxId; }
+            unset($pm);
+            savePortMappings($merged);
+            $out = ['success' => true, 'imported' => $added + $updated, 'added' => $added, 'updated' => $updated];
+        }
+        break;
+    }
+
+    // ── Port Mapping: export dst_nat.csv ────────────────────────────────────
+    case 'export_nat_csv': {
+        $pms = getPortMappings();
+        if (!empty($_GET['enabled_only'])) {
+            $pms = array_filter($pms, fn($p) => ($p['enabled'] ?? '') === 'yes');
+        }
+        $csv = exportNATToCSV($pms);
+        header('Content-Type: text/csv; charset=UTF-8');
+        header('Content-Disposition: attachment; filename="dst_nat_' . date('Ymd_His') . '.csv"');
+        header('Content-Length: ' . strlen($csv));
+        echo $csv;
+        exit;
+    }
 }
 
 echo json_encode($out, JSON_UNESCAPED_UNICODE);

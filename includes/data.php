@@ -180,6 +180,108 @@ function updatePingResult(string $ip, array $result): array {
     return $cache[$ip];
 }
 
+// ── Port Mappings ─────────────────────────────────────────────────────────────
+
+function getPortMappings(): array {
+    if (!file_exists(PORT_MAPPINGS_FILE)) {
+        // Auto-import from dst_nat.csv if present beside this app
+        $csvPath = ROOT_DIR . DIRECTORY_SEPARATOR . 'dst_nat.csv';
+        if (file_exists($csvPath)) {
+            $pms = parseNATCSVContent(file_get_contents($csvPath));
+            savePortMappings($pms);
+            return $pms;
+        }
+        savePortMappings([]);
+        return [];
+    }
+    return json_decode(file_get_contents(PORT_MAPPINGS_FILE), true) ?: [];
+}
+
+function savePortMappings(array $pms): void {
+    _atomicWriteData(PORT_MAPPINGS_FILE, json_encode(array_values($pms), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+}
+
+function getNextPortMappingID(array $pms): int {
+    if (empty($pms)) return 1;
+    return max(array_column($pms, 'id')) + 1;
+}
+
+function parseNATCSVContent(string $content): array {
+    // Detect & convert encoding
+    if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
+        $content = substr($content, 3);
+    } elseif (!mb_check_encoding($content, 'UTF-8')) {
+        $content = mb_convert_encoding($content, 'UTF-8', 'GBK');
+    }
+
+    $lines   = preg_split('/\r?\n/', trim($content));
+    $headers = null;
+    $pms     = [];
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '') continue;
+
+        $row = str_getcsv($line, ',', '"');
+
+        if ($headers === null) {
+            // Detect header row by checking for known NAT CSV columns
+            if (in_array('lan_addr', $row) || in_array('wan_port', $row)) {
+                $headers = $row;
+                continue;
+            }
+            continue;
+        }
+
+        if (count($row) < 5) continue;
+
+        $entry = [];
+        foreach ($headers as $j => $h) {
+            $entry[$h] = isset($row[$j]) ? trim($row[$j]) : '';
+        }
+
+        // URL-decode text fields
+        foreach (['comment', 'src_addr'] as $f) {
+            if (isset($entry[$f])) $entry[$f] = urldecode($entry[$f]);
+        }
+
+        $entry['id'] = isset($entry['id']) ? (int)$entry['id'] : 0;
+
+        // Ensure all expected keys exist
+        $entry += [
+            'enabled'   => 'yes',
+            'comment'   => '',
+            'interface' => 'wan1',
+            'src_addr'  => '',
+            'lan_addr'  => '',
+            'protocol'  => 'tcp+udp',
+            'wan_port'  => '',
+            'lan_port'  => '',
+        ];
+
+        $pms[] = $entry;
+    }
+    return $pms;
+}
+
+function exportNATToCSV(array $pms): string {
+    $headers = ['id', 'enabled', 'comment', 'interface', 'src_addr', 'lan_addr', 'protocol', 'wan_port', 'lan_port'];
+    $lines   = [implode(',', $headers)];
+
+    foreach ($pms as $pm) {
+        $row = [];
+        foreach ($headers as $h) {
+            $val = (string)($pm[$h] ?? '');
+            if (in_array($h, ['comment', 'src_addr'])) {
+                $val = str_replace(' ', '%20', $val);
+            }
+            $row[] = '"' . str_replace('"', '""', $val) . '"';
+        }
+        $lines[] = implode(',', $row);
+    }
+    return implode("\r\n", $lines);
+}
+
 // ── MAC vendor cache ──────────────────────────────────────────────────────────
 
 function getMacVendorCache(): array {
