@@ -19,7 +19,7 @@ $defaultIFace= htmlspecialchars($settings['default_interface'] ?? 'lan1');
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>索格 IPManager</title>
   <link rel="icon" href="logo.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assets/style.css">
+  <link rel="stylesheet" href="assets/style.css?v=<?= filemtime(__DIR__.'/assets/style.css') ?>">
 </head>
 <body>
 
@@ -820,6 +820,6 @@ window.APP = {
   defaultIFace:<?= json_encode($settings['default_interface'] ?? 'lan1') ?>,
 };
 </script>
-<script src="assets/app.js"></script>
+<script src="assets/app.js?v=<?= filemtime(__DIR__.'/assets/app.js') ?>"></script>
 </body>
 </html>
