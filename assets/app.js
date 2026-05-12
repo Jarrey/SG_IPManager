@@ -356,6 +356,12 @@ const App = (() => {
     list.innerHTML = rows.join('');
   }
 
+  // ── DHCP range helper ────────────────────────────────────────────────────
+  function isInDHCPRanges(hostOctet, dhcpRanges) {
+    if (!dhcpRanges?.length) return false;
+    return dhcpRanges.some(r => hostOctet >= r.start && hostOctet <= r.end);
+  }
+
   function renderSubnetSummary(subnets) {
     const list = document.getElementById('subnet-summary-list');
     if (!list) return;
@@ -373,10 +379,13 @@ const App = (() => {
       for (let i = s.range_start; i <= s.range_end; i++) {
         const ipStr = `${base}.${i}`;
         const u = usedByIP[ipStr];
-        const cls = u ? (u.enabled === 'no' ? 'used-disabled' : `used-${u.status}`) : 'free';
+        const cls = u ? (u.enabled === 'no' ? 'used-disabled' : `used-${u.status}`)
+                      : isInDHCPRanges(i, s.dhcp_ranges) ? 'dhcp-reserved'
+                      : 'free';
         const dataIp = u ? ` data-ip-addr="${esc(ipStr)}"` : '';
         cells.push(`<span class="overview-subnet-cell ${cls}"${dataIp} title="${esc(ipStr)}"></span>`);
       }
+      const dhcpCount = sn.dhcp_count || 0;
       return `<div class="subnet-summary-row">
         <div class="subnet-summary-title"><span>${esc(s.name)}</span><span>${esc(s.network)}/${esc(s.prefix)}</span></div>
         <div class="overview-subnet-grid">${cells.join('')}</div>
@@ -385,6 +394,7 @@ const App = (() => {
           <span>离线 ${sn.used.filter(u => u.status === 'offline').length}</span>
           <span>未检测 ${sn.used.filter(u => u.status === 'unchecked').length}</span>
           <span>已禁用 ${sn.used.filter(u => u.enabled === 'no').length}</span>
+          ${dhcpCount ? `<span class="stat-dhcp">DHCP ${dhcpCount}</span>` : ''}
           <span>空闲 ${sn.free_count}</span>
         </div>
       </div>`;
@@ -1153,11 +1163,14 @@ const App = (() => {
         const cls   = u.enabled === 'no' ? 'used-disabled' : `used-${u.status}`;
         const label = u.comment || u.cl_name || '';
         cells.push(`<div class="ip-cell-box ${cls} used-block" data-ip-addr="${esc(ipStr)}" title="${esc(ipStr)} ${esc(label)}">${i}<div class="ip-tooltip">${esc(ipStr)}<br>${esc(label) || '—'}</div></div>`);
+      } else if (isInDHCPRanges(i, s.dhcp_ranges)) {
+        cells.push(`<div class="ip-cell-box dhcp-reserved" title="DHCP保留: ${esc(ipStr)}">${i}<div class="ip-tooltip">${esc(ipStr)}<br>DHCP 保留段</div></div>`);
       } else {
         cells.push(`<div class="ip-cell-box free" data-free-ip="${esc(ipStr)}" title="空闲: ${esc(ipStr)}" style="cursor:pointer">${i}<div class="ip-tooltip">${esc(ipStr)}<br>空闲（点击分配）</div></div>`);
       }
     }
 
+    const dhcpCount = sn.dhcp_count || 0;
     return `
 <div class="subnet-panel">
   <div class="subnet-header">
@@ -1167,6 +1180,7 @@ const App = (() => {
       <span class="sstat"><span class="sstat-dot" style="background:var(--green)"></span> 在线 ${sn.used.filter(u => u.status === 'online').length}</span>
       <span class="sstat"><span class="sstat-dot" style="background:var(--red)"></span> 离线 ${sn.used.filter(u => u.status === 'offline').length}</span>
       <span class="sstat"><span class="sstat-dot" style="background:var(--accent)"></span> 已分配 ${sn.used_count}</span>
+      ${dhcpCount ? `<span class="sstat"><span class="sstat-dot dhcp-dot"></span> DHCP ${dhcpCount}</span>` : ''}
       <span class="sstat"><span class="sstat-dot" style="background:var(--bg4)"></span> 空闲 ${sn.free_count}</span>
     </div>
   </div>
@@ -1403,11 +1417,15 @@ const App = (() => {
     const el = document.getElementById('subnet-list');
     if (!el) return;
     if (!subnets.length) { el.innerHTML = '<div class="empty-hint" style="padding:1rem">暂无网段，点击「添加网段」</div>'; return; }
-    el.innerHTML = subnets.map((s, i) => `
+    el.innerHTML = subnets.map((s, i) => {
+      const dhcpInfo = s.dhcp_ranges?.length
+        ? ' · <span class="subnet-dhcp-badge">DHCP ' + s.dhcp_ranges.map(r => `.${r.start}–.${r.end}`).join(', ') + '</span>'
+        : '';
+      return `
       <div class="subnet-item">
         <div class="subnet-item-info">
           <div class="subnet-item-name">${esc(s.name)}</div>
-          <div class="subnet-item-cidr">${esc(s.network)}/${s.prefix} · 范围 .${s.range_start}–.${s.range_end} · GW ${esc(s.gateway || '—')}</div>
+          <div class="subnet-item-cidr">${esc(s.network)}/${s.prefix} · 范围 .${s.range_start}–.${s.range_end} · GW ${esc(s.gateway || '—')}${dhcpInfo}</div>
         </div>
         <button class="btn btn-ghost btn-xs" data-sn-edit="${i}" title="编辑">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1rem;height:1rem"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1415,8 +1433,8 @@ const App = (() => {
         <button class="btn btn-ghost btn-xs" data-sn-del="${i}" title="删除" style="color:var(--red)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:1rem;height:1rem"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
         </button>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
     el.querySelectorAll('[data-sn-del]').forEach(btn => {
       btn.addEventListener('click', async () => {
         const i = parseInt(btn.dataset.snDel);
@@ -1443,7 +1461,19 @@ const App = (() => {
       range_start: sn?.range_start ?? 2,
       range_end:   sn?.range_end   ?? 254,
       gateway:     sn?.gateway     || '',
+      dhcp_ranges: sn?.dhcp_ranges || [],
     };
+
+    function buildDhcpRow(r = {}) {
+      return `<div class="dhcp-range-row">
+        <input type="number" class="input-full dhcp-r-start" placeholder="起始末段" value="${r.start ?? ''}" min="1" max="254">
+        <span class="dhcp-range-sep">–</span>
+        <input type="number" class="input-full dhcp-r-end" placeholder="结束末段" value="${r.end ?? ''}" min="1" max="254">
+        <button type="button" class="btn btn-ghost btn-xs btn-del-dhcp" style="color:var(--red);flex-shrink:0">×</button>
+      </div>`;
+    }
+
+    const dhcpRowsHtml = vals.dhcp_ranges.map(r => buildDhcpRow(r)).join('');
     const html = `
       <div class="form-group"><label>网段名称</label><input id="sn-name" class="input-full" value="${esc(vals.name)}"></div>
       <div class="form-row">
@@ -1455,6 +1485,13 @@ const App = (() => {
         <div class="form-group"><label>结束 IP 末段</label><input id="sn-end" type="number" class="input-full" value="${vals.range_end}" min="1" max="254"></div>
       </div>
       <div class="form-group"><label>网关</label><input id="sn-gw" class="input-full" value="${esc(vals.gateway)}"></div>
+      <div class="form-group">
+        <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.4rem">
+          <span>DHCP 保留段 <span style="color:var(--fg4);font-size:.78rem">（保留给 DHCP 服务器，不可手动分配）</span></span>
+          <button type="button" id="btn-add-dhcp-range" class="btn btn-xs btn-outline">+ 添加</button>
+        </label>
+        <div id="sn-dhcp-ranges">${dhcpRowsHtml}</div>
+      </div>
     `;
     const snModal = document.getElementById('modal-confirm');
     const snInner = snModal.querySelector('.modal');
@@ -1465,6 +1502,22 @@ const App = (() => {
     snOkBtn.className   = 'btn btn-primary';
     snInner.classList.remove('modal-sm'); // wider for form fields
     openModal('modal-confirm');
+
+    // Bind DHCP range add/delete
+    const dhcpContainer = document.getElementById('sn-dhcp-ranges');
+    function bindDhcpDelete() {
+      dhcpContainer.querySelectorAll('.btn-del-dhcp').forEach(btn => {
+        const fresh = btn.cloneNode(true);
+        btn.replaceWith(fresh);
+        fresh.addEventListener('click', () => fresh.closest('.dhcp-range-row').remove());
+      });
+    }
+    bindDhcpDelete();
+    document.getElementById('btn-add-dhcp-range').addEventListener('click', () => {
+      dhcpContainer.insertAdjacentHTML('beforeend', buildDhcpRow());
+      bindDhcpDelete();
+    });
+
     function snCleanup() {
       snOkBtn.removeEventListener('click', snOkHandler);
       snModal.removeEventListener('click', snCancelHandler);
@@ -1474,6 +1527,15 @@ const App = (() => {
       snOkBtn.className   = 'btn btn-danger';
     }
     function snOkHandler() {
+      // Collect DHCP ranges
+      const dhcpRanges = [];
+      dhcpContainer.querySelectorAll('.dhcp-range-row').forEach(row => {
+        const start = parseInt(row.querySelector('.dhcp-r-start').value);
+        const end   = parseInt(row.querySelector('.dhcp-r-end').value);
+        if (!isNaN(start) && !isNaN(end) && start >= 1 && end >= start && end <= 254) {
+          dhcpRanges.push({ start, end });
+        }
+      });
       const newSn = {
         id:          sn?.id ?? Date.now(),
         name:        document.getElementById('sn-name').value.trim(),
@@ -1482,6 +1544,7 @@ const App = (() => {
         range_start: parseInt(document.getElementById('sn-start').value),
         range_end:   parseInt(document.getElementById('sn-end').value),
         gateway:     document.getElementById('sn-gw').value.trim(),
+        dhcp_ranges: dhcpRanges,
       };
       if (idx !== null) state.settings.subnets[idx] = newSn;
       else state.settings.subnets = [...(state.settings.subnets || []), newSn];

@@ -213,6 +213,27 @@ function isIPInSubnet(string $ip, string $network, int $prefix): bool {
     return ($ipL & $mask) === ($netL & $mask);
 }
 
+function isIPInDHCPRanges(string $ip, array $subnet): bool {
+    $parts    = explode('.', $ip);
+    $hostPart = (int)end($parts);
+    foreach ($subnet['dhcp_ranges'] ?? [] as $range) {
+        if ($hostPart >= (int)$range['start'] && $hostPart <= (int)$range['end']) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function getDHCPRangeCount(array $subnet): int {
+    $count = 0;
+    foreach ($subnet['dhcp_ranges'] ?? [] as $range) {
+        $start = max((int)$subnet['range_start'], (int)$range['start']);
+        $end   = min((int)$subnet['range_end'],   (int)$range['end']);
+        if ($end >= $start) $count += $end - $start + 1;
+    }
+    return $count;
+}
+
 function getFreeIPs(array $subnet, array $usedIPs): array {
     $parts = explode('.', $subnet['network']);
     $base  = $parts[0] . '.' . $parts[1] . '.' . $parts[2] . '.';
@@ -220,7 +241,9 @@ function getFreeIPs(array $subnet, array $usedIPs): array {
     $free  = [];
     for ($i = (int)$subnet['range_start']; $i <= (int)$subnet['range_end']; $i++) {
         $candidate = $base . $i;
-        if (!in_array($candidate, $used)) $free[] = $candidate;
+        if (!in_array($candidate, $used) && !isIPInDHCPRanges($candidate, $subnet)) {
+            $free[] = $candidate;
+        }
     }
     return $free;
 }

@@ -164,6 +164,14 @@ switch ($action) {
         foreach ($ips as $x) {
             if ($x['ip_addr'] === $ipStr) { $out = ['success' => false, 'error' => 'IP 地址已存在']; break 2; }
         }
+        // DHCP range check
+        $settings = getSettings();
+        foreach ($settings['subnets'] ?? [] as $sn) {
+            if (isIPInSubnet($ipStr, $sn['network'], (int)$sn['prefix']) && isIPInDHCPRanges($ipStr, $sn)) {
+                $out = ['success' => false, 'error' => '该 IP 属于 DHCP 保留段，不能手动分配'];
+                break 2;
+            }
+        }
         $new = [
             'id'         => getNextID($ips),
             'enabled'    => ($d['enabled'] ?? '') === 'yes' ? 'yes' : 'no',
@@ -194,6 +202,14 @@ switch ($action) {
         $ips   = getIPs();
         $ipStr = filter_var(trim($d['ip_addr'] ?? ''), FILTER_VALIDATE_IP);
         if (!$ipStr) { $out = ['success' => false, 'error' => '无效的 IP 地址']; break; }
+        // DHCP range check
+        $settingsUp = getSettings();
+        foreach ($settingsUp['subnets'] ?? [] as $sn) {
+            if (isIPInSubnet($ipStr, $sn['network'], (int)$sn['prefix']) && isIPInDHCPRanges($ipStr, $sn)) {
+                $out = ['success' => false, 'error' => '该 IP 属于 DHCP 保留段，不能手动分配'];
+                break 2;
+            }
+        }
         $found = false;
         foreach ($ips as &$ip) {
             if ($ip['id'] !== $id) continue;
@@ -404,6 +420,7 @@ switch ($action) {
             $freeIPs = getFreeIPs($sn, $ips);
             $result[] = ['subnet' => $sn, 'used' => array_values($usedIPs), 'free' => $freeIPs,
                 'used_count' => count($usedIPs), 'free_count' => count($freeIPs),
+                'dhcp_count' => getDHCPRangeCount($sn),
                 'total' => ($sn['range_end'] - $sn['range_start'] + 1)];
         }
         $out = ['success' => true, 'data' => $result];
@@ -458,6 +475,11 @@ switch ($action) {
                         'range_start' => min(254, max(1, (int)($sn['range_start'] ?? 2))),
                         'range_end'   => min(254, max(1, (int)($sn['range_end'] ?? 254))),
                         'gateway'     => filter_var(trim($sn['gateway'] ?? ''), FILTER_VALIDATE_IP) ?: '',
+                        'dhcp_ranges' => array_values(array_filter(array_map(function($r) {
+                            $s = min(254, max(1, (int)($r['start'] ?? 0)));
+                            $e = min(254, max(1, (int)($r['end']   ?? 0)));
+                            return ($s > 0 && $e >= $s) ? ['start' => $s, 'end' => $e] : null;
+                        }, is_array($sn['dhcp_ranges'] ?? null) ? $sn['dhcp_ranges'] : []))),
                     ];
                 }
                 if (!empty($valid)) {

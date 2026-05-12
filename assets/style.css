@@ -306,6 +306,7 @@ svg { display: block; flex-shrink: 0; }
 .overview-subnet-cell.used-unchecked{ background: var(--accent); }
 .overview-subnet-cell.used-disabled { background: var(--fg4); }
 .overview-subnet-cell.free          { background: var(--bg4); border: 1px solid var(--border); }
+.overview-subnet-cell.dhcp-reserved { background: #f97316; opacity: .55; }
 .subnet-summary-stats {
   display: flex;
   gap: 1rem;
@@ -712,6 +713,7 @@ tbody tr.disabled-row { opacity: .5; }
 .ip-cell-box.used-unchecked{ background: var(--accent-bg); color: var(--accent); border: 1px solid rgba(59,130,246,.25); }
 .ip-cell-box.used-disabled { background: var(--gray-bg); color: var(--fg3); border: 1px solid var(--border); }
 .ip-cell-box.free          { background: var(--bg3); color: var(--fg4); border: 1px dashed var(--border); }
+.ip-cell-box.dhcp-reserved { background: rgba(249,115,22,.12); color: #f97316; border: 1px solid rgba(249,115,22,.35); cursor: default; }
 .ip-tooltip {
   position: absolute;
   bottom: calc(100% + 6px);
@@ -727,6 +729,18 @@ tbody tr.disabled-row { opacity: .5; }
   display: none;
 }
 .ip-cell-box:hover .ip-tooltip { display: block; }
+.sstat-dot.dhcp-dot { background: #f97316; }
+.stat-dhcp { color: #f97316 !important; }
+.subnet-dhcp-badge { color: #f97316; font-size: .8em; }
+/* DHCP range editor rows */
+.dhcp-range-row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: .4rem;
+}
+.dhcp-range-row .input-full { flex: 1; min-width: 0; }
+.dhcp-range-sep { color: var(--fg3); flex-shrink: 0; }
 
 /* ══════════════════════════════════════════════════════════════════════════════
    CARDS (IO / Settings)
